@@ -79,7 +79,7 @@ const App = () => {
 
     mesh.buildRenderPipeline(device, shaderModule, navigator.gpu.getPreferredCanvasFormat(), 'depth24plus-stencil8', viewParamBindGroupLayout);
 
-    const camera = new ArcballCamera([0, 0, 0.2], [0, 0, 0], [0, 1, 0], 0.5, [
+    const camera = new ArcballCamera([0, 0, 0.3], [0, 0, 0], [0, 1, 0], 0.5, [
       canvas.width,
       canvas.height,
     ]);

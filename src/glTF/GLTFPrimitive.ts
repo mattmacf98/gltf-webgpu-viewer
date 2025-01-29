@@ -104,43 +104,6 @@ export class GLTFPrimitive {
                 }
             ];
 
-            if (this.texcoords) {
-                if (this.texcoords.view.gpuBuffer === null) {
-                    this.texcoords.view.upload(device);
-                }
-                vertexBuffers.push(
-                    {
-                        arrayStride: this.texcoords.byteStride,
-                        attributes: [
-                            {
-                                format: this.texcoords.elementType as GPUVertexFormat,
-                                offset: 0,
-                                shaderLocation: 1
-                            }
-                        ]
-                    }
-                )
-            }
-
-            if (this.normals) {
-                if (this.normals.view.gpuBuffer === null) {
-                    this.normals.view.upload(device);
-                }
-                vertexBuffers.push(
-                    {
-                        arrayStride: this.normals.byteStride,
-                        attributes: [
-                            {
-                                format: this.normals.elementType as GPUVertexFormat,
-                                offset: 0,
-                                shaderLocation: 2
-                            }
-                        ]
-                    }
-                )
-            }
-
-
             const primitive = this.topology == GLTFRenderMode.TRIANGLE_STRIP ? {topology: "triangle-strip" as GPUPrimitiveTopology, stripIndexFormat: this.indices!.elementType as GPUIndexFormat} : {topology: "triangle-list" as GPUPrimitiveTopology};
 
             this.renderPipeline = getPipelineForArgs(vertexBuffers, primitive, colorFormat, depthFormat, uniformsBGLayout, device, shaderModule)
@@ -156,22 +119,6 @@ export class GLTFPrimitive {
             this.positions.byteOffset,
             this.positions.byteLength
         );
-
-        if (this.texcoords) {
-            renderPassEncoder.setVertexBuffer(1,
-                this.texcoords.view.gpuBuffer,
-                this.texcoords.byteOffset,
-                this.texcoords.byteLength
-            );
-        }
-
-        if (this.normals) {
-            renderPassEncoder.setVertexBuffer(2,
-                this.normals.view.gpuBuffer,
-                this.normals.byteOffset,
-                this.normals.byteLength
-            )
-        }
 
         if (this.indices) {
             renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer!, this.indices.elementType as GPUIndexFormat, this.indices.byteOffset, this.indices.byteLength);
