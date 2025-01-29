@@ -2,7 +2,7 @@ const pipelineGPUData = new Map();
 let numPipelines = 0;
 
 export function getPipelineForArgs(vertexBufferLayouts: GPUVertexBufferLayout[], primitive: GPUPrimitiveState, colorFormat: GPUTextureFormat, depthFormat: GPUTextureFormat,
-     uniformsBGLayout: GPUBindGroupLayout, device: GPUDevice, shaderModule: GPUShaderModule) {
+     uniformsBGLayout: GPUBindGroupLayout, nodeParamsBindGroupLayout: GPUBindGroupLayout, device: GPUDevice, shaderModule: GPUShaderModule) {
 
     const key = JSON.stringify({vertexBufferLayouts, primitive});
     let pipeline = pipelineGPUData.get(key);
@@ -14,7 +14,7 @@ export function getPipelineForArgs(vertexBufferLayouts: GPUVertexBufferLayout[],
     console.log(`Pipeline #${numPipelines}`);
 
     const layout = device.createPipelineLayout({
-        bindGroupLayouts: [uniformsBGLayout]
+        bindGroupLayouts: [uniformsBGLayout, nodeParamsBindGroupLayout]
     });
 
     pipeline = device.createRenderPipeline({

@@ -69,7 +69,7 @@ const App = () => {
       }],
     });
 
-    const mesh = await fetch("./Avocado.glb")
+    const scene = await fetch("./2CylinderEngine.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
@@ -77,9 +77,9 @@ const App = () => {
       code: gltfShader,
     });
 
-    mesh.buildRenderPipeline(device, shaderModule, navigator.gpu.getPreferredCanvasFormat(), 'depth24plus-stencil8', viewParamBindGroupLayout);
+    scene.buildRenderPipeline(device, shaderModule, navigator.gpu.getPreferredCanvasFormat(), 'depth24plus-stencil8', viewParamBindGroupLayout);
 
-    const camera = new ArcballCamera([0, 0, 0.3], [0, 0, 0], [0, 1, 0], 0.5, [
+    const camera = new ArcballCamera([0, 0, 500], [0, 0, 0], [0, 1, 0], 0.5, [
       canvas.width,
       canvas.height,
     ]);
@@ -141,7 +141,7 @@ const App = () => {
       const commandEncoder = device.createCommandEncoder();
       commandEncoder.copyBufferToBuffer(viewParamUpdateBuffer, 0, viewParamBuffer, 0, 16 * Float32Array.BYTES_PER_ELEMENT);
       const renderPass = commandEncoder.beginRenderPass(renderPassDesc);
-      mesh.render(renderPass, viewParamBindGroup);
+      scene.render(renderPass, viewParamBindGroup);
       renderPass.end();
 
       device.queue.submit([commandEncoder.finish()]);

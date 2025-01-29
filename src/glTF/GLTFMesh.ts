@@ -23,16 +23,16 @@ export class GLTFMesh {
     }
 
     buildRenderPipeline(device: GPUDevice, shaderModule: GPUShaderModule, colorFormat: GPUTextureFormat,
-        depthFormat: GPUTextureFormat, uniformsBGLayout: GPUBindGroupLayout) {
+        depthFormat: GPUTextureFormat, uniformsBGLayout: GPUBindGroupLayout, nodeParamsBindGroupLayout: GPUBindGroupLayout) {
             for (const primitive of this.primitives) {
-                primitive.buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout);
+                primitive.buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout, nodeParamsBindGroupLayout);
             }
 
    }
 
-   render(renderPassEncoder: GPURenderPassEncoder, viewParamBindGroup: GPUBindGroup) {
+   render(renderPassEncoder: GPURenderPassEncoder) {
         for (const primitive of this.primitives) {
-            primitive.render(renderPassEncoder, viewParamBindGroup);
+            primitive.render(renderPassEncoder);
         }
    }
 }

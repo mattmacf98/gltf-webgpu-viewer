@@ -90,7 +90,7 @@ export class GLTFPrimitive {
     }
 
     buildRenderPipeline(device: GPUDevice, shaderModule: GPUShaderModule, colorFormat: GPUTextureFormat,
-         depthFormat: GPUTextureFormat, uniformsBGLayout: GPUBindGroupLayout) {
+         depthFormat: GPUTextureFormat, uniformsBGLayout: GPUBindGroupLayout, nodeParamsBindGroupLayout: GPUBindGroupLayout) {
             const vertexBuffers: GPUVertexBufferLayout[] = [
                 {
                     arrayStride: this.positions.byteStride,
@@ -106,13 +106,12 @@ export class GLTFPrimitive {
 
             const primitive = this.topology == GLTFRenderMode.TRIANGLE_STRIP ? {topology: "triangle-strip" as GPUPrimitiveTopology, stripIndexFormat: this.indices!.elementType as GPUIndexFormat} : {topology: "triangle-list" as GPUPrimitiveTopology};
 
-            this.renderPipeline = getPipelineForArgs(vertexBuffers, primitive, colorFormat, depthFormat, uniformsBGLayout, device, shaderModule)
+            this.renderPipeline = getPipelineForArgs(vertexBuffers, primitive, colorFormat, depthFormat, uniformsBGLayout, nodeParamsBindGroupLayout, device, shaderModule)
 
     }
 
-    render(renderPassEncoder: GPURenderPassEncoder, viewParamBindGroup: GPUBindGroup) {
+    render(renderPassEncoder: GPURenderPassEncoder) {
         renderPassEncoder.setPipeline(this.renderPipeline!);
-        renderPassEncoder.setBindGroup(0, viewParamBindGroup);
 
         renderPassEncoder.setVertexBuffer(0,
             this.positions.view.gpuBuffer,

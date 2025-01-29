@@ -2,6 +2,8 @@ import { GLTFAccessor, loadAccessors } from "./GLTFAccessor";
 import { GLTFBuffer } from "./GLTFBuffer";
 import { GLTFBufferView, loadBufferViews } from "./GLTFBufferView";
 import { GLTFMesh, loadMesh } from "./GLTFMesh";
+import { GLTFNode, loadNodes } from "./GLTFNode";
+import { GLTFScene } from "./GLTFScene";
 
 export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
     const header = new Uint32Array(buffer, 0, 5);
@@ -35,5 +37,8 @@ export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
         }
     })
     
-    return meshes[0];
+    const sceneNodesJson = jsonChunk["scenes"][0]["nodes"];
+    const sceneNodes: GLTFNode[] = loadNodes(jsonChunk, sceneNodesJson, meshes);
+
+    return new GLTFScene(sceneNodes);
 }
