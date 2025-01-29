@@ -69,7 +69,7 @@ const App = () => {
       }],
     });
 
-    const scene = await fetch("./2CylinderEngine.glb")
+    const scene = await fetch("./Duck.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
@@ -79,7 +79,7 @@ const App = () => {
 
     scene.buildRenderPipeline(device, shaderModule, navigator.gpu.getPreferredCanvasFormat(), 'depth24plus-stencil8', viewParamBindGroupLayout);
 
-    const camera = new ArcballCamera([0, 0, 500], [0, 0, 0], [0, 1, 0], 0.5, [
+    const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, 1, 0], 0.5, [
       canvas.width,
       canvas.height,
     ]);

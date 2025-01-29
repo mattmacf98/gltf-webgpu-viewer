@@ -1,9 +1,13 @@
 import { GLTFAccessor, loadAccessors } from "./GLTFAccessor";
 import { GLTFBuffer } from "./GLTFBuffer";
 import { GLTFBufferView, loadBufferViews } from "./GLTFBufferView";
+import { GLTFImage, loadImages } from "./GLTFImage";
+import { GLTFMaterial, loadMaterials } from "./GLTFMaterial";
 import { GLTFMesh, loadMesh } from "./GLTFMesh";
 import { GLTFNode, loadNodes } from "./GLTFNode";
+import { GLTFSampler, loadSamplers } from "./GLTFSampler";
 import { GLTFScene } from "./GLTFScene";
+import { GLTFTexture, loadTextures } from "./GLTFTexture";
 
 export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
     const header = new Uint32Array(buffer, 0, 5);
@@ -29,12 +33,26 @@ export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
 
     const bufferViews: GLTFBufferView[] = loadBufferViews(jsonChunk, binaryChunk)
     const accessors: GLTFAccessor[] = loadAccessors(jsonChunk, bufferViews);
-    const meshes: GLTFMesh[] = loadMesh(jsonChunk, accessors);
+    const samplers: GLTFSampler[] = loadSamplers(jsonChunk);
+    const images: GLTFImage[] = await loadImages(jsonChunk, bufferViews);
+    const textures: GLTFTexture[] = loadTextures(jsonChunk, images, samplers);
+    const materials: GLTFMaterial[] = loadMaterials(jsonChunk, textures);
+    const meshes: GLTFMesh[] = loadMesh(jsonChunk, accessors, materials);
 
     bufferViews.forEach((bufferView: GLTFBufferView) => {
         if (bufferView.needsUpload) {
             bufferView.upload(device);
         }
+    });
+
+    images.forEach((img: GLTFImage) => {
+        img.upload(device);
+    });
+    samplers.forEach((sampler: GLTFSampler) => {
+        sampler.create(device);
+    });
+    materials.forEach((material: GLTFMaterial) => {
+        material.upload(device);
     })
     
     const sceneNodesJson = jsonChunk["scenes"][0]["nodes"];

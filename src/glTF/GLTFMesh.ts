@@ -1,10 +1,11 @@
 import { GLTFAccessor } from "./GLTFAccessor";
+import { GLTFMaterial } from "./GLTFMaterial";
 import { GLTFPrimitive, loadPrimitives } from "./GLTFPrimitive";
 
-export function loadMesh(jsonChunk: any, accessors: GLTFAccessor[]) {
+export function loadMesh(jsonChunk: any, accessors: GLTFAccessor[], materials: GLTFMaterial[]) {
     const meshes: GLTFMesh[] = [];
     for (const meshJson of jsonChunk.meshes) {
-        const meshPrimitives: GLTFPrimitive[] = loadPrimitives(jsonChunk, meshJson, accessors);
+        const meshPrimitives: GLTFPrimitive[] = loadPrimitives(jsonChunk, meshJson, accessors, materials);
 
         const mesh = new GLTFMesh(meshJson["name"], meshPrimitives);
         meshes.push(mesh);
