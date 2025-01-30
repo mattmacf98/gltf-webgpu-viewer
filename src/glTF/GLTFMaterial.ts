@@ -33,8 +33,13 @@ export function loadMaterials(jsonChunk: any, textures: GLTFTexture[]) {
             metallicRoughnessTexture = textures[pbrMaterial["metallicRoughnessTexture"]["index"]];
         }
 
+        let normalTexture: GLTFTexture | null = null;
+        if ("normalTexture" in pbrMaterial) {
+            normalTexture = textures[pbrMaterial["normalTexture"]["index"]];
+        }
+
        
-        materials.push(new GLTFMaterial(baseColorFactor, baseColorTexture, metallicFactor, roughnessFactor, metallicRoughnessTexture));
+        materials.push(new GLTFMaterial(baseColorFactor, baseColorTexture, metallicFactor, roughnessFactor, metallicRoughnessTexture, normalTexture));
     }
 
     return materials;
@@ -48,12 +53,14 @@ export class GLTFMaterial {
     rougnessFactor: number = 1;
     metallicRoughnessTexture: GLTFTexture | null = null;
 
+    normalTexture: GLTFTexture | null = null;
+
     paramBuffer: GPUBuffer | null = null;
 
     bindGroupLayout: GPUBindGroupLayout | null = null;
     bindGroup: GPUBindGroup | null = null;
 
-    constructor(baseColorFactor: vec4, baseColorTexture: GLTFTexture | null, metallicFactor: number, roughnessFactor: number, metallicRoughnessTexture: GLTFTexture | null) {
+    constructor(baseColorFactor: vec4, baseColorTexture: GLTFTexture | null, metallicFactor: number, roughnessFactor: number, metallicRoughnessTexture: GLTFTexture | null, normalTexture: GLTFTexture | null) {
         
         this.baseColorFactor = baseColorFactor;
         this.baseColorTexture = baseColorTexture;
@@ -66,6 +73,11 @@ export class GLTFMaterial {
         this.metallicRoughnessTexture = metallicRoughnessTexture;
         if (this.metallicRoughnessTexture) {
             this.metallicRoughnessTexture.setUsage(ImageUsage.METALLIC_ROUGHNESS);
+        }
+
+        this.normalTexture = normalTexture;
+        if (this.normalTexture) {
+            this.normalTexture.setUsage(ImageUsage.NORMAL);
         }
     }
 
@@ -171,6 +183,7 @@ export class GLTFMaterial {
                 texture: {}
             }
         );
+
         if (this.metallicRoughnessTexture) {
             bindGroupEntries.push(
                 {
@@ -203,6 +216,58 @@ export class GLTFMaterial {
             bindGroupEntries.push(
                 {
                     binding: 4,
+                    resource: transparentBlackTexture.createView()
+                }
+            );
+        }
+
+        //NORMAL
+        bindGroupLayoutEntries.push(
+            {
+                binding: 5,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler: {}
+            }
+        );
+        bindGroupLayoutEntries.push(
+            {
+                binding: 6,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: {}
+            }
+        );
+        if (this.normalTexture) {
+            bindGroupEntries.push(
+                {
+                    binding: 5,
+                    resource: this.normalTexture.sampler!.sampler!
+                }
+            );
+            bindGroupEntries.push(
+                {
+                    binding: 6,
+                    resource: this.normalTexture.image!.view!
+                }
+            );
+        } else {
+            const transparentBlackTexture = createSolidColorTexture(device, 0, 0, 0, 0);
+            const defaultSampler = new GLTFSampler(
+                GLTFTextureFilter.LINEAR,
+                GLTFTextureFilter.LINEAR,
+                GLTFTextureWrap.REPEAT,
+                GLTFTextureWrap.REPEAT
+            );
+            defaultSampler.create(device);
+
+            bindGroupEntries.push(
+                {
+                    binding: 5,
+                    resource: defaultSampler.sampler!
+                }
+            );
+            bindGroupEntries.push(
+                {
+                    binding: 6,
                     resource: transparentBlackTexture.createView()
                 }
             );

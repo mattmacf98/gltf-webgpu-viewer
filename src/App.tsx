@@ -51,14 +51,25 @@ const App = () => {
     });
 
     const viewParamBindGroupLayout = device?.createBindGroupLayout({
-      entries: [{
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {type: 'uniform'},
-      }],
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX,
+          buffer: {type: 'uniform'},
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.FRAGMENT,
+          buffer: {type: 'uniform'},
+        }
+      ],
     });
     const viewParamBuffer = device?.createBuffer({
       size: 16 * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const cameraEyeBuffer = device?.createBuffer({
+      size: 4 * Float32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const viewParamBindGroup = device?.createBindGroup({
@@ -66,10 +77,14 @@ const App = () => {
       entries: [{
         binding: 0,
         resource: {buffer: viewParamBuffer},
+      },
+      {
+        binding: 1,
+        resource: {buffer: cameraEyeBuffer},
       }],
     });
 
-    const scene = await fetch("./Duck.glb")
+    const scene = await fetch("./Avocado.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
@@ -79,7 +94,7 @@ const App = () => {
 
     scene.buildRenderPipeline(device, shaderModule, navigator.gpu.getPreferredCanvasFormat(), 'depth24plus-stencil8', viewParamBindGroupLayout);
 
-    const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, 1, 0], 0.5, [
+    const camera = new ArcballCamera([0, 0, 0.3], [0, 0, 0], [0, 1, 0], 0.5, [
       canvas.width,
       canvas.height,
     ]);
@@ -88,7 +103,7 @@ const App = () => {
         glMatrix.mat4.create(),
         (50 * Math.PI) / 180.0,
         canvas.width / canvas.height,
-        0.1,
+        0.01,
         1000
     );
 
@@ -136,10 +151,20 @@ const App = () => {
       map.set(projView);
       viewParamUpdateBuffer.unmap();
 
+      const cameraEyeUpdateBuffer = device.createBuffer({
+        size: 4 * Float32Array.BYTES_PER_ELEMENT,
+        usage: GPUBufferUsage.COPY_SRC,
+        mappedAtCreation: true
+      });
+      const cameraEyeMap = new Float32Array(cameraEyeUpdateBuffer.getMappedRange());
+      cameraEyeMap.set([camera.eyePos()[0], camera.eyePos()[1], camera.eyePos()[2], 1]);
+      cameraEyeUpdateBuffer.unmap();
+
       renderPassDesc.colorAttachments[0].view = context.getCurrentTexture().createView();
 
       const commandEncoder = device.createCommandEncoder();
       commandEncoder.copyBufferToBuffer(viewParamUpdateBuffer, 0, viewParamBuffer, 0, 16 * Float32Array.BYTES_PER_ELEMENT);
+      commandEncoder.copyBufferToBuffer(cameraEyeUpdateBuffer, 0, cameraEyeBuffer, 0, 4 * Float32Array.BYTES_PER_ELEMENT);
       const renderPass = commandEncoder.beginRenderPass(renderPassDesc);
       scene.render(renderPass, viewParamBindGroup);
       renderPass.end();

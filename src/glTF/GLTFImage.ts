@@ -38,9 +38,9 @@ export class GLTFImage {
                 format = "rgba8unorm-srgb";
                 break;
             case ImageUsage.METALLIC_ROUGHNESS:
+            case ImageUsage.NORMAL:
                 format = "rgba8unorm";
                 break;
-            case ImageUsage.NORMAL:
             case ImageUsage.OCCLUSION:
             case ImageUsage.EMISSION:
                 throw new Error("Unhandled image format for now, TODO!");
