@@ -33,9 +33,16 @@ struct MaterialParams {
     roughness_factor: f32,
 };
 
+fn linear_to_srgb(x: f32) -> f32 {
+    if (x <= 0.0031308) {
+        return 12.92 * x;
+    }
+    return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
+}
+
 const lightColor = vec3f(1);
 const lightIntensity = 4.0;
-const ambientColor = vec3f(0.2);
+const ambientColor = vec3f(0.025);
 const PI = 3.14159265359;
 
 @group(0) @binding(0)
@@ -117,6 +124,11 @@ fn fragment_main(in: VertexOutput) -> @location(0) float4 {
 
     let color = (diffuse + specular) * NdotL * lightColor * lightIntensity;
 
-    let final_color = color + ambientColor;
+    var final_color = color + ambientColor;
+
+    final_color.x = linear_to_srgb(final_color.x);
+    final_color.y = linear_to_srgb(final_color.y);
+    final_color.z = linear_to_srgb(final_color.z);
+
     return vec4<f32>(final_color, 1.0);
 }
