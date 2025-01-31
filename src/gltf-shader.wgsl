@@ -93,10 +93,10 @@ fn vertex_main(vert: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) float4 {
-   let albedo = textureSample(base_color_texture, base_color_sampler, in.texcoords).rgb;
+   let albedo = (textureSample(base_color_texture, base_color_sampler, in.texcoords) * material_params.base_color_factor).rgb;
    let metallicRouhgness = textureSample(metallic_roughness_texture, metallic_roughness_sampler, in.texcoords);
-   let metallic = metallicRouhgness.r;
-   let roughness = metallicRouhgness.g;
+   let metallic = metallicRouhgness.r * material_params.metallic_factor;
+   let roughness = metallicRouhgness.g * material_params.roughness_factor;
 
    let normal = normalize(textureSample(normal_texture, normal_sampler, in.texcoords).rgb * 2.0 - 1.0);
    let N = normalize(normal + in.normal);
