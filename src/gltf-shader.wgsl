@@ -40,9 +40,9 @@ fn linear_to_srgb(x: f32) -> f32 {
     return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }
 
-const lightColor = vec3f(1);
+const lightColor = vec3f(1.0, 1.0, 0.0);
 const lightIntensity = 4.0;
-const ambientColor = vec3f(0.025);
+const ambientColor = vec3f(0.05);
 const PI = 3.14159265359;
 
 @group(0) @binding(0)
@@ -124,7 +124,7 @@ fn fragment_main(in: VertexOutput) -> @location(0) float4 {
 
     let color = (diffuse + specular) * NdotL * lightColor * lightIntensity;
 
-    var final_color = color + ambientColor;
+    var final_color = color + ambientColor * (1.0 - metallic);
 
     final_color.x = linear_to_srgb(final_color.x);
     final_color.y = linear_to_srgb(final_color.y);
