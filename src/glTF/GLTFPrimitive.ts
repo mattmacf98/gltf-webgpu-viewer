@@ -57,13 +57,15 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
             const vertexPositions = new Float32Array(positions.elements.buffer.slice(positions.elements.byteOffset, positions.elements.byteOffset + positions.elements.byteLength));
             const vertexNormals = new Float32Array(normals.elements.buffer.slice(normals.elements.byteOffset, normals.elements.byteOffset + normals.elements.byteLength));
             const indicesArray = new Uint16Array(indices.elements.buffer.slice(indices.elements.byteOffset, indices.elements.byteOffset + indices.elements.byteLength));
-            console.log(`numberOfIndices: ${indicesArray.length}`)
-            console.log(`Number of vertices: ${vertexPositions.length / 3}`)
+            // console.log(`numberOfIndices: ${indicesArray.length}`)
+            // console.log(`Number of vertices: ${vertexPositions.length / 3}`)
+
 
             for (let i = 0; i < indicesArray.length; i += 3) {
-                const indexOne = indicesArray[i];
-                const indexTwo = indicesArray[i + 1];
-                const indexThree = indicesArray[i + 2];
+
+                const indexOne = indicesArray[i] * 3;
+                const indexTwo = indicesArray[i + 1] * 3;
+                const indexThree = indicesArray[i + 2] * 3;
 
                 const positionOne = [vertexPositions[indexOne], vertexPositions[indexOne + 1], vertexPositions[indexOne + 2]];
                 const positionTwo = [vertexPositions[indexTwo], vertexPositions[indexTwo + 1], vertexPositions[indexTwo + 2]];
@@ -73,7 +75,7 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
                 const normalTwo = [vertexNormals[indexTwo], vertexNormals[indexTwo + 1], vertexNormals[indexTwo + 2]];
                 const normalThree = [vertexNormals[indexThree], vertexNormals[indexThree + 1], vertexNormals[indexThree + 2]];
 
-                const color = [0.0, 0.0, 0.0];
+                const color = [1.0, 0.5, 0.5];
                 const triangle = new Triangle(
                     [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],

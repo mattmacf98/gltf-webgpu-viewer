@@ -65,7 +65,7 @@ const App = () => {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    const scene = await fetch("./Avocado.glb")
+    const scene = await fetch("./Box.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
@@ -179,8 +179,8 @@ const App = () => {
   device?.queue.writeBuffer(trianglesBuffer, 0, trianglesUploadData, 0);
 
   // UPLAOD SCENE PARAMS
-  const maxBounces: number = 1;
-  const camera = new ArcballCamera([0, 0, 0.3], [0, 0, 0], [0, 1, 0], 0.5, [
+  const maxBounces: number = 2;
+  const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, 1, 0], 0.5, [
     canvas.width,
     canvas.height,
   ]);
