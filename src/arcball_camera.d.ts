@@ -2,6 +2,8 @@ declare module "arcball_camera" {
     export class ArcballCamera {
       camera: any;
       eyePos(): [number, number, number];
+      eyeDir(): [number, number, number];
+      upDir(): [number, number, number];
       zoom(arg0: number): void
       pan(arg0: number[]): void
       rotate(prev: any, cur: any): void

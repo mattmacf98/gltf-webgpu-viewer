@@ -1,4 +1,5 @@
 import { GLTFNode } from "./GLTFNode";
+import { Triangle } from "./Triangle";
 
 export class GLTFScene {
     nodes: GLTFNode[];
@@ -19,5 +20,9 @@ export class GLTFScene {
         for (const node of this.nodes) {
             node.render(renderPassEncoder);
         }
+    }
+
+    get triangles(): Triangle[] {
+        return this.nodes.flatMap(node => node.triangles);
     }
 }

@@ -158,5 +158,9 @@ export class GLTFAccessor {
 
     get elementType() {
         return gltfVertexType(this.componentType, this.gltfType);
+    }       
+
+    get elements(): Uint8Array {
+        return this.view.elements.slice(this.byteOffset, this.byteOffset + this.byteLength);
     }
 }

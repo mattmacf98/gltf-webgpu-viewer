@@ -1,5 +1,6 @@
 import { mat4, ReadonlyVec3 } from "gl-matrix";
 import { GLTFMesh } from "./GLTFMesh";
+import { Triangle } from "./Triangle";
 
 function flattenTree(allNodes: any, node: any, parentTransform: mat4): any {
     let flattened = [];
@@ -108,5 +109,10 @@ export class GLTFNode {
     render(renderPassEncoder: GPURenderPassEncoder) {
         renderPassEncoder.setBindGroup(1, this.nodeParamsBindGroup);
         this.mesh.render(renderPassEncoder)
+    }
+
+    get triangles(): Triangle[] {
+        //TODO transfom the triangles based on node transform (then should definately do on gpu)
+        return this.mesh.triangles;
     }
 }

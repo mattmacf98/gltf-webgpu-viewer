@@ -1,6 +1,7 @@
 import { GLTFAccessor } from "./GLTFAccessor";
 import { GLTFMaterial } from "./GLTFMaterial";
 import { GLTFPrimitive, loadPrimitives } from "./GLTFPrimitive";
+import { Triangle } from "./Triangle";
 
 export function loadMesh(jsonChunk: any, accessors: GLTFAccessor[], materials: GLTFMaterial[]) {
     const meshes: GLTFMesh[] = [];
@@ -35,5 +36,9 @@ export class GLTFMesh {
         for (const primitive of this.primitives) {
             primitive.render(renderPassEncoder);
         }
+   }
+
+   get triangles(): Triangle[] {
+    return this.primitives.flatMap(primitive => primitive.triangles);
    }
 }

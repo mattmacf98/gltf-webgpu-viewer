@@ -57,4 +57,8 @@ export class GLTFBufferView {
         this.gpuBuffer = buf;
         this.needsUpload = false;
     }
+
+    get elements(): Uint8Array {
+        return this.view;
+    }
 }

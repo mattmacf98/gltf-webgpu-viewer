@@ -46,6 +46,17 @@ export enum GLTFComponentType
     DOUBLE = 5130,
 };
 
+export const componentTypeSize = {
+    [GLTFComponentType.BYTE]: 1,
+    [GLTFComponentType.UNSIGNED_BYTE]: 1,
+    [GLTFComponentType.SHORT]: 2,
+    [GLTFComponentType.UNSIGNED_SHORT]: 2,
+    [GLTFComponentType.INT]: 4,
+    [GLTFComponentType.UNSIGNED_INT]: 4,
+    [GLTFComponentType.FLOAT]: 4,
+    [GLTFComponentType.DOUBLE]: 8,
+};
+
 export enum GLTFType
 {
     SCALAR = 0,

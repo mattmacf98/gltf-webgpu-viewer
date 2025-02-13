@@ -4,6 +4,7 @@ import { GLTFBufferView } from "./GLTFBufferView";
 import { GLTFComponentType, GLTFRenderMode, GLTFType } from "./GLTFEnums";
 import { GLTFMaterial } from "./GLTFMaterial";
 import { getPipelineForArgs } from "./GPUPipelineProvider";
+import { Triangle } from "./Triangle";
 
 export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAccessor[], materials: GLTFMaterial[]) {
     const meshPrimitives = [];
@@ -51,8 +52,39 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
             normals = new GLTFAccessor(fakeBufferView, positions.count, GLTFComponentType.FLOAT, GLTFType.VEC3, 0);
         }
 
+        const triangles = [];
+        if (indices) {
+            const vertexPositions = new Float32Array(positions.elements.buffer.slice(positions.elements.byteOffset, positions.elements.byteOffset + positions.elements.byteLength));
+            const vertexNormals = new Float32Array(normals.elements.buffer.slice(normals.elements.byteOffset, normals.elements.byteOffset + normals.elements.byteLength));
+            const indicesArray = new Uint16Array(indices.elements.buffer.slice(indices.elements.byteOffset, indices.elements.byteOffset + indices.elements.byteLength));
+            console.log(`numberOfIndices: ${indicesArray.length}`)
+            console.log(`Number of vertices: ${vertexPositions.length / 3}`)
+
+            for (let i = 0; i < indicesArray.length; i += 3) {
+                const indexOne = indicesArray[i];
+                const indexTwo = indicesArray[i + 1];
+                const indexThree = indicesArray[i + 2];
+
+                const positionOne = [vertexPositions[indexOne], vertexPositions[indexOne + 1], vertexPositions[indexOne + 2]];
+                const positionTwo = [vertexPositions[indexTwo], vertexPositions[indexTwo + 1], vertexPositions[indexTwo + 2]];
+                const positionThree = [vertexPositions[indexThree], vertexPositions[indexThree + 1], vertexPositions[indexThree + 2]];
+
+                const normalOne = [vertexNormals[indexOne], vertexNormals[indexOne + 1], vertexNormals[indexOne + 2]];
+                const normalTwo = [vertexNormals[indexTwo], vertexNormals[indexTwo + 1], vertexNormals[indexTwo + 2]];
+                const normalThree = [vertexNormals[indexThree], vertexNormals[indexThree + 1], vertexNormals[indexThree + 2]];
+
+                const color = [0.0, 0.0, 0.0];
+                const triangle = new Triangle(
+                    [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
+                    [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],
+                    new Float32Array(color)
+                );
+                triangles.push(triangle);
+            }
+        }
+
         const material = materials[meshPrimitive["material"]];
-        meshPrimitives.push(new GLTFPrimitive(material,positions, indices || undefined, texcoords, normals, topology));
+        meshPrimitives.push(new GLTFPrimitive(material,positions, indices || undefined, texcoords, normals, topology, triangles));
     }
 
     return meshPrimitives;
@@ -66,8 +98,9 @@ export class GLTFPrimitive {
     normals: GLTFAccessor;
     topology: GLTFRenderMode;
     renderPipeline?: GPURenderPipeline;
+    _triangles: Triangle[];
 
-    constructor(material: GLTFMaterial, positions: GLTFAccessor, indices: GLTFAccessor | undefined, texcoords: GLTFAccessor, normals: GLTFAccessor, topology: GLTFRenderMode) {
+    constructor(material: GLTFMaterial, positions: GLTFAccessor, indices: GLTFAccessor | undefined, texcoords: GLTFAccessor, normals: GLTFAccessor, topology: GLTFRenderMode, triangles: Triangle[]) {
         this.material = material;
         this.positions = positions;
         this.texcoords = texcoords;
@@ -75,6 +108,7 @@ export class GLTFPrimitive {
         this.indices = indices;
         this.topology = topology;
         this.renderPipeline = undefined;
+        this._triangles = triangles;
 
         this.positions.view.needsUpload = true;
         this.positions.view.addUsage(GPUBufferUsage.VERTEX);
@@ -93,6 +127,7 @@ export class GLTFPrimitive {
             this.indices.view.needsUpload = true;
             this.indices.view.addUsage(GPUBufferUsage.INDEX);
         }
+
     }
 
     buildRenderPipeline(device: GPUDevice, shaderModule: GPUShaderModule, colorFormat: GPUTextureFormat,
@@ -184,5 +219,9 @@ export class GLTFPrimitive {
         } else {
             renderPassEncoder.draw(this.positions.count);
         }
+    }
+
+    get triangles(): Triangle[] {
+        return this._triangles;
     }
 }
