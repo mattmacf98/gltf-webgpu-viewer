@@ -75,7 +75,7 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
                 const normalTwo = [vertexNormals[indexTwo], vertexNormals[indexTwo + 1], vertexNormals[indexTwo + 2]];
                 const normalThree = [vertexNormals[indexThree], vertexNormals[indexThree + 1], vertexNormals[indexThree + 2]];
 
-                const color = [1.0, 0.5, 0.5];
+                const color = [0.0, 0.0, 1.0];
                 const triangle = new Triangle(
                     [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],

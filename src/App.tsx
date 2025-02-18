@@ -162,8 +162,8 @@ const App = () => {
     }
   });
 
-  console.log(triangles.length)
-  console.log(triangles)
+  console.log(`Number of triangles: ${triangles.length}`)
+  // console.log(triangles)
 
   // UPLOAD TRIANGLES
   const trianglesUploadData = new Float32Array(triangles.length * 28);
@@ -200,7 +200,7 @@ const App = () => {
   controller.registerForCanvas(canvas);
 
   const sceneParamsUploadData = new Float32Array(16);
-  sceneParamsUploadData.set([0,0,-5], 0);// position
+  sceneParamsUploadData.set([0,0,5], 0);// position
   sceneParamsUploadData.set([0,0,1], 4); // forward
   sceneParamsUploadData.set([-1,0,0], 8); // right
   sceneParamsUploadData.set([maxBounces], 11); // max bounces
@@ -225,9 +225,9 @@ const App = () => {
     const sceneParamsUpdateData = new Float32Array(16);
     sceneParamsUpdateData.set([camera.eyePos()[0], camera.eyePos()[1], camera.eyePos()[2]], 0);
     sceneParamsUpdateData.set([camera.eyeDir()[0], camera.eyeDir()[1], camera.eyeDir()[2]], 4);
-    sceneParamsUpdateData.set([camera.upDir()[0], camera.upDir()[1], camera.upDir()[2]], 8);
+    sceneParamsUpdateData.set([rightVec3[0], rightVec3[1], rightVec3[2]], 8);
     sceneParamsUpdateData.set([maxBounces], 11);
-    sceneParamsUpdateData.set([rightVec3[0], rightVec3[1], rightVec3[2]], 12);
+    sceneParamsUpdateData.set([camera.upDir()[0], camera.upDir()[1], camera.upDir()[2]], 12);
     sceneParamsUpdateData.set([triangles.length], 15);
     device?.queue.writeBuffer(sceneParamsUpdateBuffer, 0, sceneParamsUpdateData, 0);
 
@@ -259,7 +259,7 @@ const App = () => {
       device.queue.onSubmittedWorkDone()
       .then(() => {
           const end = performance.now();
-          console.log(`Render Time: ${end - start}ms`);
+          // console.log(`Render Time: ${end - start}ms`);
       });
       requestAnimationFrame(frame);
     }
@@ -275,8 +275,3 @@ const App = () => {
 }
 
 export default App;
-
-
-// TODO:
-// 2. get basic box to render (something is wrong with my triangles)
-// 3. add accurate diffuse color to the triangles

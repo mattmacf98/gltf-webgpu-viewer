@@ -39,7 +39,7 @@ struct RenderState {
     t: f32,
     color: vec3<f32>,
     hit: bool,
-    normal: vec3<f32>,
+    scatter_direction: vec3<f32>,
 }
 
 @compute @workgroup_size(1,1,1)
@@ -87,7 +87,7 @@ fn rayColor(ray: Ray) -> vec3<f32> {
         } else {
             // if we hit something we will update the ray and accumulated color
             worldRay.origin = worldRay.origin + result.t * worldRay.direction;
-            worldRay.direction = normalize(reflect(worldRay.direction, result.normal));
+            worldRay.direction = result.scatter_direction;
             color *= result.color;
         }
         bounce++;
@@ -102,6 +102,7 @@ fn rayColor(ray: Ray) -> vec3<f32> {
 }
 
 fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState) -> RenderState {
+    // TODO: precompute surface normal and pass in with triangle
     var edgeAB: vec3<f32> = triangle.corner_b - triangle.corner_a;
     var edgeAC: vec3<f32> = triangle.corner_c - triangle.corner_a;
     var surface_normal: vec3<f32> = cross(edgeAB, edgeAC);
@@ -110,10 +111,10 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var front_face: bool = tri_normal_dot_ray_dir < 0.0;
     if (!front_face) {
         // flip normal if ray hits back face
-        surface_normal = -surface_normal;
-        tri_normal_dot_ray_dir = -tri_normal_dot_ray_dir;
+        // surface_normal = -surface_normal;
+        // tri_normal_dot_ray_dir = -tri_normal_dot_ray_dir;
         //TODO: if we ever need to send rays through objects (refraction) we cannot simply ignore back faces
-        // return renderState;
+        return oldRenderState;
     }
 
     if (tri_normal_dot_ray_dir > -0.00001) {
@@ -121,39 +122,58 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         return oldRenderState;
     }
 
-    // cramer's rule to solve for barycentric coordinates
-    // TODO: see if I can make the barycentric coord code more clear
-    var system_matrix: mat3x3<f32> = mat3x3<f32>(ray.direction, -edgeAB, -edgeAC);
-
-    let denominator: f32 = determinant(system_matrix);
-    if (abs(denominator) < 0.00001) {
+    
+    var denom = dot(surface_normal, ray.direction);
+    if (abs(denom) < 0.00001) {
         return oldRenderState;
     }
 
-    system_matrix = mat3x3<f32>(ray.direction, triangle.corner_a - ray.origin, -edgeAC);
-    let u: f32 = determinant(system_matrix) / denominator;
-    if (u < 0.0 || u > 1.0) {
-        return oldRenderState;
-    }
-
-    system_matrix = mat3x3<f32>(ray.direction, -edgeAB, triangle.corner_a - ray.origin);
-    let v: f32 = determinant(system_matrix) / denominator;
-    if (v < 0.0 || u + v > 1.0) {
-        return oldRenderState;
-    }
-
-    system_matrix = mat3x3<f32>(triangle.corner_a - ray.origin, -edgeAB, -edgeAC);
-    let t: f32 = determinant(system_matrix) / denominator;
+    var d = dot(surface_normal, triangle.corner_a); //TODO this could be in tri data
+    var t = (d - dot(surface_normal, ray.origin)) / denom;
     if (t < tMin || t > tMax) {
         return oldRenderState;
     }
 
+    // cramer's rule to solve for barycentric coordinates
+    // TODO: see if I can make the barycentric coord code more clear
+    var intersection_point: vec3<f32> = ray.origin + t * ray.direction;
+    var plane_intersection_point: vec3<f32> = intersection_point - triangle.corner_a;
+    var w = surface_normal / dot(surface_normal, surface_normal);
+
+    var u = dot(w, cross(plane_intersection_point, edgeAC));
+    if (u < 0.0 || u > 1.0) {
+        return oldRenderState;
+    }
+
+    var v = dot(w, cross(edgeAB, plane_intersection_point));
+    if (v < 0.0 || u + v > 1.0) {
+        return oldRenderState;
+    }
+
+    var normal = (1.0 - u - v) * triangle.normal_a + u * triangle.normal_b + v * triangle.normal_c;
+    var onb_u = normalize(normal);
+    var onb_v = normalize(cross(vec3(0.0, 1.0, 0.0), onb_u));
+    var onb_w = normalize(cross(onb_u, onb_v));
+    var random_cosine_direction = random_cosine_direction();
+    var scatter_direction = onb_u * random_cosine_direction.x + onb_v * random_cosine_direction.y + onb_w * random_cosine_direction.z;
+
     var renderState: RenderState;
     renderState.color = oldRenderState.color;
-    renderState.normal = (1.0 - u - v) * triangle.normal_a + u * triangle.normal_b + v * triangle.normal_c;
+    renderState.scatter_direction = normalize(scatter_direction);
     renderState.t = t;
     renderState.hit = true;
     renderState.color = triangle.color;
 
     return renderState;
+}
+
+fn random_cosine_direction() -> vec3<f32> {
+    var r1: f32 = random(vec2(0.0, 0.0));
+    var r2: f32 = random(vec2(1.0, 1.0));
+    var phi = 2.0 * 3.1415926535897932384626433832795 * r1;
+    return vec3(cos(phi) * sqrt(r2), sin(phi) * sqrt(r2), sqrt(1.0 - r2));
+}
+
+fn random(uv: vec2<f32>) -> f32 {
+    return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453123);
 }
