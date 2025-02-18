@@ -41,4 +41,8 @@ export class GLTFMesh {
    get triangles(): Triangle[] {
     return this.primitives.flatMap(primitive => primitive.triangles);
    }
+
+   get materials(): GLTFMaterial[] {
+    return this.primitives.flatMap(primitive => primitive.material);
+   }
 }

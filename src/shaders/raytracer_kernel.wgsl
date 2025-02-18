@@ -7,6 +7,11 @@ var<uniform> scene: SceneData;
 @group(0) @binding(2)
 var<storage, read> primitives: PrimitiveData;
 
+@group(0) @binding(3)
+var base_color_map: texture_2d<f32>;
+@group(0) @binding(4)
+var base_color_sampler: sampler;
+
 struct PrimitiveData {
     triangles: array<Triangle>
 }
@@ -18,7 +23,9 @@ struct Triangle {
     normal_b: vec3<f32>,
     corner_c: vec3<f32>,
     normal_c: vec3<f32>,
-    color: vec3<f32>
+    uv_a: vec2<f32>,
+    uv_b: vec2<f32>,
+    uv_c: vec2<f32>
 }
 
 struct Ray {
@@ -157,12 +164,15 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var random_cosine_direction = random_cosine_direction();
     var scatter_direction = onb_u * random_cosine_direction.x + onb_v * random_cosine_direction.y + onb_w * random_cosine_direction.z;
 
+    var uv = (1.0 - u - v) * triangle.uv_a + u * triangle.uv_b + v * triangle.uv_c;
+    var base_color = textureSampleLevel(base_color_map, base_color_sampler, uv, 0.0).rgb;
+
     var renderState: RenderState;
     renderState.color = oldRenderState.color;
     renderState.scatter_direction = normalize(scatter_direction);
     renderState.t = t;
     renderState.hit = true;
-    renderState.color = triangle.color;
+    renderState.color = base_color;
 
     return renderState;
 }

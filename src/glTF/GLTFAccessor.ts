@@ -125,8 +125,9 @@ export function loadAccessors(jsonChunk: any, bufferViews: GLTFBufferView[]) {
         const componentType = accessor["componentType"] as GLTFComponentType;
         const gltfType = parseGltfType(accessor["type"]);
         const byteOffset = "byteOffset" in accessor ? accessor["byteOffset"] as number : 0;
-    
-        accessors.push(new GLTFAccessor(bufferViews[viewID], count, componentType, gltfType, byteOffset))
+        const max = "max" in accessor ? accessor["max"] as number[] : undefined;
+        const min = "min" in accessor ? accessor["min"] as number[] : undefined;
+        accessors.push(new GLTFAccessor(bufferViews[viewID], count, componentType, gltfType, byteOffset, max, min))
     }
 
     return accessors;
@@ -138,13 +139,17 @@ export class GLTFAccessor {
     gltfType: GLTFType;
     view: GLTFBufferView;
     byteOffset: number;
+    _max?: number[];
+    _min?: number[];
 
-    constructor(view: GLTFBufferView, count: number, componentType: GLTFComponentType, gltfType: GLTFType, byteOffset: number) {
+    constructor(view: GLTFBufferView, count: number, componentType: GLTFComponentType, gltfType: GLTFType, byteOffset: number, max?: number[], min?: number[]) {
         this.count = count;
         this.componentType = componentType;
         this.gltfType = gltfType;
         this.view = view;
         this.byteOffset = byteOffset;
+        this._max = max;
+        this._min = min;
     }
 
     get byteStride() {
@@ -162,5 +167,13 @@ export class GLTFAccessor {
 
     get elements(): Uint8Array {
         return this.view.elements.slice(this.byteOffset, this.byteOffset + this.byteLength);
+    }
+
+    get max() {
+        return this._max;
+    }
+
+    get min() {
+        return this._min;
     }
 }

@@ -56,30 +56,35 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
         if (indices) {
             const vertexPositions = new Float32Array(positions.elements.buffer.slice(positions.elements.byteOffset, positions.elements.byteOffset + positions.elements.byteLength));
             const vertexNormals = new Float32Array(normals.elements.buffer.slice(normals.elements.byteOffset, normals.elements.byteOffset + normals.elements.byteLength));
+            const vertexUvs = new Float32Array(texcoords.elements.buffer.slice(texcoords.elements.byteOffset, texcoords.elements.byteOffset + texcoords.elements.byteLength));
             const indicesArray = new Uint16Array(indices.elements.buffer.slice(indices.elements.byteOffset, indices.elements.byteOffset + indices.elements.byteLength));
-            // console.log(`numberOfIndices: ${indicesArray.length}`)
-            // console.log(`Number of vertices: ${vertexPositions.length / 3}`)
-
 
             for (let i = 0; i < indicesArray.length; i += 3) {
 
-                const indexOne = indicesArray[i] * 3;
-                const indexTwo = indicesArray[i + 1] * 3;
-                const indexThree = indicesArray[i + 2] * 3;
+                const vec3IndexOne = indicesArray[i] * 3;
+                const vec3IndexTwo = indicesArray[i + 1] * 3;
+                const vec3IndexThree = indicesArray[i + 2] * 3;
 
-                const positionOne = [vertexPositions[indexOne], vertexPositions[indexOne + 1], vertexPositions[indexOne + 2]];
-                const positionTwo = [vertexPositions[indexTwo], vertexPositions[indexTwo + 1], vertexPositions[indexTwo + 2]];
-                const positionThree = [vertexPositions[indexThree], vertexPositions[indexThree + 1], vertexPositions[indexThree + 2]];
+                const positionOne = [vertexPositions[vec3IndexOne], vertexPositions[vec3IndexOne + 1], vertexPositions[vec3IndexOne + 2]];
+                const positionTwo = [vertexPositions[vec3IndexTwo], vertexPositions[vec3IndexTwo + 1], vertexPositions[vec3IndexTwo + 2]];
+                const positionThree = [vertexPositions[vec3IndexThree], vertexPositions[vec3IndexThree + 1], vertexPositions[vec3IndexThree + 2]];
 
-                const normalOne = [vertexNormals[indexOne], vertexNormals[indexOne + 1], vertexNormals[indexOne + 2]];
-                const normalTwo = [vertexNormals[indexTwo], vertexNormals[indexTwo + 1], vertexNormals[indexTwo + 2]];
-                const normalThree = [vertexNormals[indexThree], vertexNormals[indexThree + 1], vertexNormals[indexThree + 2]];
+                const normalOne = [vertexNormals[vec3IndexOne], vertexNormals[vec3IndexOne + 1], vertexNormals[vec3IndexOne + 2]];
+                const normalTwo = [vertexNormals[vec3IndexTwo], vertexNormals[vec3IndexTwo + 1], vertexNormals[vec3IndexTwo + 2]];
+                const normalThree = [vertexNormals[vec3IndexThree], vertexNormals[vec3IndexThree + 1], vertexNormals[vec3IndexThree + 2]];
 
-                const color = [0.0, 0.0, 1.0];
+                const vec2IndexOne = indicesArray[i] * 2;
+                const vec2IndexTwo = indicesArray[i + 1] * 2;
+                const vec2IndexThree = indicesArray[i + 2] * 2;
+
+                const uvOne = [vertexUvs[vec2IndexOne], vertexUvs[vec2IndexOne + 1]];
+                const uvTwo = [vertexUvs[vec2IndexTwo], vertexUvs[vec2IndexTwo + 1]];
+                const uvThree = [vertexUvs[vec2IndexThree], vertexUvs[vec2IndexThree + 1]];
+
                 const triangle = new Triangle(
                     [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],
-                    new Float32Array(color)
+                    [new Float32Array(uvOne), new Float32Array(uvTwo), new Float32Array(uvThree)]
                 );
                 triangles.push(triangle);
             }

@@ -6,6 +6,18 @@ import { Triangle } from "./glTF/Triangle";
 import { ArcballCamera } from "arcball_camera";
 import {Controller} from "ez_canvas_controller";
 import { vec3 } from "gl-matrix";
+import { GLTFMaterial } from "./glTF/GLTFMaterial";
+
+function createSolidColorTexture(device: GPUDevice, r: number, g: number, b: number, a: number) {
+  const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
+  const texture = device.createTexture({
+    size: { width: 1, height: 1 },
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+  });
+  device.queue.writeTexture({ texture }, data, {}, { width: 1, height: 1 });
+  return texture;
+}
 
 const App = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,7 +67,7 @@ const App = () => {
       addressModeU: "repeat",
       addressModeV: "repeat",
       magFilter: "linear",
-      minFilter: "nearest",
+      minFilter: "linear",
       mipmapFilter: "nearest",
       maxAnisotropy: 1
     });
@@ -65,14 +77,25 @@ const App = () => {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    const scene = await fetch("./Box.glb")
+    const scene = await fetch("./BoxTextured.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
     const triangles: Triangle[] = scene.triangles;
+    const materials: GLTFMaterial[] = scene.materials;
+    console.log(materials)
+    // for now assume only one material
+    const material = materials[0];
+    let baseColorTextureView: GPUTextureView;
+    if (material.baseColorTexture) {
+      baseColorTextureView = material.baseColorTexture.image.view!;
+    } else {
+      const solidColorTexture = createSolidColorTexture(device, 1, 0, 0, 1);
+      baseColorTextureView = solidColorTexture.createView();
+    }
 
     const trianglesBuffer = device?.createBuffer({
-      size: 28 * Float32Array.BYTES_PER_ELEMENT * triangles.length,
+      size: 32 * Float32Array.BYTES_PER_ELEMENT * triangles.length,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
 
@@ -97,6 +120,16 @@ const App = () => {
           binding: 2,
           visibility: GPUShaderStage.COMPUTE,
           buffer: {type: 'read-only-storage'},
+        },
+        {
+          binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          texture: {},
+        },
+        {
+          binding: 4,
+          visibility: GPUShaderStage.COMPUTE,
+          sampler: {},
         }
       ],
     });
@@ -107,6 +140,8 @@ const App = () => {
         {binding: 0, resource: colorBufferView},
         {binding: 1, resource: {buffer: sceneParamsBuffer}},
         {binding: 2, resource: {buffer: trianglesBuffer}},
+        {binding: 3, resource: baseColorTextureView},
+        {binding: 4, resource: sampler},
       ]
     });
 
@@ -166,15 +201,17 @@ const App = () => {
   // console.log(triangles)
 
   // UPLOAD TRIANGLES
-  const trianglesUploadData = new Float32Array(triangles.length * 28);
+  const trianglesUploadData = new Float32Array(triangles.length * 32);
   for (let i = 0; i < triangles.length; i++) {
-    trianglesUploadData.set(triangles[i].positions[0], i * 28);
-    trianglesUploadData.set(triangles[i].normals[0], i * 28 + 4)
-    trianglesUploadData.set(triangles[i].positions[1], i * 28 + 8);
-    trianglesUploadData.set(triangles[i].normals[1], i * 28 + 12);
-    trianglesUploadData.set(triangles[i].positions[2], i * 28 + 16);
-    trianglesUploadData.set(triangles[i].normals[2], i * 28 + 20);
-    trianglesUploadData.set(triangles[i].color, i * 28 + 24);
+    trianglesUploadData.set(triangles[i].positions[0], i * 32);
+    trianglesUploadData.set(triangles[i].normals[0], i * 32 + 4)
+    trianglesUploadData.set(triangles[i].positions[1], i * 32 + 8);
+    trianglesUploadData.set(triangles[i].normals[1], i * 32 + 12);
+    trianglesUploadData.set(triangles[i].positions[2], i * 32 + 16);
+    trianglesUploadData.set(triangles[i].normals[2], i * 32 + 20);
+    trianglesUploadData.set(triangles[i].uvs[0], i * 32 + 24);
+    trianglesUploadData.set(triangles[i].uvs[1], i * 32 + 26);
+    trianglesUploadData.set(triangles[i].uvs[2], i * 32 + 28);
   }
   device?.queue.writeBuffer(trianglesBuffer, 0, trianglesUploadData, 0);
 

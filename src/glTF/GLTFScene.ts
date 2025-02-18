@@ -1,3 +1,4 @@
+import { GLTFMaterial } from "./GLTFMaterial";
 import { GLTFNode } from "./GLTFNode";
 import { Triangle } from "./Triangle";
 
@@ -24,5 +25,9 @@ export class GLTFScene {
 
     get triangles(): Triangle[] {
         return this.nodes.flatMap(node => node.triangles);
+    }
+
+    get materials(): GLTFMaterial[] {
+        return this.nodes.flatMap(node => node.materials);
     }
 }
