@@ -1,4 +1,4 @@
-import { mat4, ReadonlyVec3 } from "gl-matrix";
+import { mat4, ReadonlyVec3, vec2, vec3 } from "gl-matrix";
 import { GLTFMesh } from "./GLTFMesh";
 import { Triangle } from "./Triangle";
 import { GLTFMaterial } from "./GLTFMaterial";
@@ -113,8 +113,17 @@ export class GLTFNode {
     }
 
     get triangles(): Triangle[] {
-        //TODO transfom the triangles based on node transform (then should definately do on gpu)
-        return this.mesh.triangles;
+        const transforemedTriangles: Triangle[] = [];
+        for (const triangle of this.mesh.triangles) {
+            const transformedPositions: Float32Array[] = triangle.positions.map((position) => vec3.transformMat4(vec3.create(), position, this.transfrom)).map((position) => new Float32Array(position));
+            const transformedTriangle = new Triangle(
+                transformedPositions,
+                triangle.normals,
+                triangle.uvs
+            );
+            transforemedTriangles.push(transformedTriangle);
+        }
+        return transforemedTriangles;
     }
 
     get materials(): GLTFMaterial[] {

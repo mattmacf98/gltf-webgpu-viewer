@@ -83,7 +83,7 @@ const App = () => {
 
     const triangles: Triangle[] = scene.triangles;
     const materials: GLTFMaterial[] = scene.materials;
-    console.log(materials)
+
     // for now assume only one material
     const material = materials[0];
     let baseColorTextureView: GPUTextureView;
@@ -217,7 +217,7 @@ const App = () => {
 
   // UPLAOD SCENE PARAMS
   const maxBounces: number = 2;
-  const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, 1, 0], 0.5, [
+  const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, -1, 0], 0.5, [
     canvas.width,
     canvas.height,
   ]);
@@ -236,12 +236,18 @@ const App = () => {
   }
   controller.registerForCanvas(canvas);
 
+  const upVec3: vec3 = new Float32Array([camera.upDir()[0], camera.upDir()[1], camera.upDir()[2]]);
+  const forwardVec3: vec3 = new Float32Array([camera.eyeDir()[0], camera.eyeDir()[1], camera.eyeDir()[2]]);
+  const rightVec3: vec3 = vec3.create();
+  vec3.cross(rightVec3, forwardVec3, upVec3);
+  vec3.normalize(rightVec3, rightVec3);
+
   const sceneParamsUploadData = new Float32Array(16);
-  sceneParamsUploadData.set([0,0,5], 0);// position
-  sceneParamsUploadData.set([0,0,1], 4); // forward
-  sceneParamsUploadData.set([-1,0,0], 8); // right
+  sceneParamsUploadData.set([camera.eyePos()[0], camera.eyePos()[1], camera.eyePos()[2]], 0);// position
+  sceneParamsUploadData.set([camera.eyeDir()[0], camera.eyeDir()[1], camera.eyeDir()[2]], 4); // forward
+  sceneParamsUploadData.set([rightVec3[0], rightVec3[1], rightVec3[2]], 8); // right
   sceneParamsUploadData.set([maxBounces], 11); // max bounces
-  sceneParamsUploadData.set([0,1,0], 12); // up
+  sceneParamsUploadData.set([camera.upDir()[0], camera.upDir()[1], camera.upDir()[2]], 12); // up
   sceneParamsUploadData.set([triangles.length], 15);
   device?.queue.writeBuffer(sceneParamsBuffer, 0, sceneParamsUploadData, 0);
 
