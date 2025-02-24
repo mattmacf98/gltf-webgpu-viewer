@@ -1,4 +1,4 @@
-import { mat4, ReadonlyVec3, vec2, vec3 } from "gl-matrix";
+import { mat4, ReadonlyVec3, vec2, vec3, vec4 } from "gl-matrix";
 import { GLTFMesh } from "./GLTFMesh";
 import { Triangle } from "./Triangle";
 import { GLTFMaterial } from "./GLTFMaterial";
@@ -116,10 +116,15 @@ export class GLTFNode {
         const transforemedTriangles: Triangle[] = [];
         for (const triangle of this.mesh.triangles) {
             const transformedPositions: Float32Array[] = triangle.positions.map((position) => vec3.transformMat4(vec3.create(), position, this.transfrom)).map((position) => new Float32Array(position));
+            const transformedNormals: Float32Array[] = triangle.normals.map((normal) => vec4.transformMat4(vec4.create(), [normal[0], normal[1], normal[2], 0.0], this.transfrom))
+            .map((normal) => new Float32Array([normal[0], normal[1], normal[2]]));
+
             const transformedTriangle = new Triangle(
                 transformedPositions,
-                triangle.normals,
-                triangle.uvs
+                transformedNormals,
+                triangle.uvs,
+                triangle.ior,
+                triangle.metalness
             );
             transforemedTriangles.push(transformedTriangle);
         }

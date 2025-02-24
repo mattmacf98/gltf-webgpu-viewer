@@ -3,11 +3,15 @@ export class Triangle {
     private _normals: Float32Array[];
     private _uvs: Float32Array[];
     private _centroid: Float32Array;
+    private _ior: number;
+    private _metalness: number;
 
-    constructor(positions: Float32Array[], normals: Float32Array[], uvs: Float32Array[]) {
+    constructor(positions: Float32Array[], normals: Float32Array[], uvs: Float32Array[], ior: number, metalness: number) {
         this._positions = positions;
         this._normals = normals;
         this._uvs = uvs;
+        this._ior = ior;
+        this._metalness = metalness;
         this._centroid = new Float32Array([0,0,0]);
         const weights = [0.3333333333333333, 0.3333333333333333, 0.3333333333333333];
         for(const position of positions) {
@@ -31,5 +35,13 @@ export class Triangle {
 
     get normals(): Float32Array[] {
         return this._normals;
+    }
+
+    get ior(): number {
+        return this._ior;
+    }
+
+    get metalness(): number {
+        return this._metalness;
     }
 }

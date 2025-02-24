@@ -7,6 +7,7 @@ import { ArcballCamera } from "arcball_camera";
 import {Controller} from "ez_canvas_controller";
 import { vec3 } from "gl-matrix";
 import { GLTFMaterial } from "./glTF/GLTFMaterial";
+import { CubeMaterial } from "./CubeMaterial";
 
 function createSolidColorTexture(device: GPUDevice, r: number, g: number, b: number, a: number) {
   const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
@@ -95,9 +96,11 @@ const App = () => {
     }
 
     const trianglesBuffer = device?.createBuffer({
-      size: 32 * Float32Array.BYTES_PER_ELEMENT * triangles.length,
+      size: 40 * Float32Array.BYTES_PER_ELEMENT * triangles.length,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
+
+    const cube_material = await CubeMaterial.init(device, ["./gfx/sky_front.png", "./gfx/sky_back.png", "./gfx/sky_left.png", "./gfx/sky_right.png", "./gfx/sky_bottom.png", "./gfx/sky_top.png"]);
 
     // RAY TRACING PIPELINE
     const rayTracingBindGroupLayout = device?.createBindGroupLayout({
@@ -130,6 +133,16 @@ const App = () => {
           binding: 4,
           visibility: GPUShaderStage.COMPUTE,
           sampler: {},
+        },
+        {
+          binding: 5,
+          visibility: GPUShaderStage.COMPUTE,
+          texture: { viewDimension: "cube" },
+        },
+        {
+          binding: 6,
+          visibility: GPUShaderStage.COMPUTE,
+          sampler: {},
         }
       ],
     });
@@ -142,6 +155,8 @@ const App = () => {
         {binding: 2, resource: {buffer: trianglesBuffer}},
         {binding: 3, resource: baseColorTextureView},
         {binding: 4, resource: sampler},
+        {binding: 5, resource: cube_material.view},
+        {binding: 6, resource: cube_material.sampler},
       ]
     });
 
@@ -201,22 +216,24 @@ const App = () => {
   // console.log(triangles)
 
   // UPLOAD TRIANGLES
-  const trianglesUploadData = new Float32Array(triangles.length * 32);
+  const trianglesUploadData = new Float32Array(triangles.length * 40);
   for (let i = 0; i < triangles.length; i++) {
-    trianglesUploadData.set(triangles[i].positions[0], i * 32);
-    trianglesUploadData.set(triangles[i].normals[0], i * 32 + 4)
-    trianglesUploadData.set(triangles[i].positions[1], i * 32 + 8);
-    trianglesUploadData.set(triangles[i].normals[1], i * 32 + 12);
-    trianglesUploadData.set(triangles[i].positions[2], i * 32 + 16);
-    trianglesUploadData.set(triangles[i].normals[2], i * 32 + 20);
-    trianglesUploadData.set(triangles[i].uvs[0], i * 32 + 24);
-    trianglesUploadData.set(triangles[i].uvs[1], i * 32 + 26);
-    trianglesUploadData.set(triangles[i].uvs[2], i * 32 + 28);
+    trianglesUploadData.set(triangles[i].positions[0], i * 40);
+    trianglesUploadData.set(triangles[i].normals[0], i * 40 + 4)
+    trianglesUploadData.set(triangles[i].positions[1], i * 40 + 8);
+    trianglesUploadData.set(triangles[i].normals[1], i * 40 + 12);
+    trianglesUploadData.set(triangles[i].positions[2], i * 40 + 16);
+    trianglesUploadData.set(triangles[i].normals[2], i * 40 + 20);
+    trianglesUploadData.set(triangles[i].uvs[0], i * 40 + 24);
+    trianglesUploadData.set(triangles[i].uvs[1], i * 40 + 26);
+    trianglesUploadData.set(triangles[i].uvs[2], i * 40 + 28);
+    trianglesUploadData.set([triangles[i].ior], i * 40 + 32);
+    trianglesUploadData.set([triangles[i].metalness], i * 40 + 36);
   }
   device?.queue.writeBuffer(trianglesBuffer, 0, trianglesUploadData, 0);
 
   // UPLAOD SCENE PARAMS
-  const maxBounces: number = 2;
+  const maxBounces: number = 50;
   const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, -1, 0], 0.5, [
     canvas.width,
     canvas.height,

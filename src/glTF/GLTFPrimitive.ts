@@ -81,10 +81,13 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
                 const uvTwo = [vertexUvs[vec2IndexTwo], vertexUvs[vec2IndexTwo + 1]];
                 const uvThree = [vertexUvs[vec2IndexThree], vertexUvs[vec2IndexThree + 1]];
 
+               
                 const triangle = new Triangle(
                     [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],
-                    [new Float32Array(uvOne), new Float32Array(uvTwo), new Float32Array(uvThree)]
+                    [new Float32Array(uvOne), new Float32Array(uvTwo), new Float32Array(uvThree)],
+                    -1.0, //ior
+                    0.0 //metalness
                 );
                 triangles.push(triangle);
             }

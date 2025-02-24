@@ -9,8 +9,15 @@ var<storage, read> primitives: PrimitiveData;
 
 @group(0) @binding(3)
 var base_color_map: texture_2d<f32>;
+
 @group(0) @binding(4)
 var base_color_sampler: sampler;
+
+@group(0) @binding(5)
+var skybox: texture_cube<f32>;
+
+@group(0) @binding(6)
+var skybox_sampler: sampler;
 
 struct PrimitiveData {
     triangles: array<Triangle>
@@ -25,7 +32,9 @@ struct Triangle {
     normal_c: vec3<f32>,
     uv_a: vec2<f32>,
     uv_b: vec2<f32>,
-    uv_c: vec2<f32>
+    uv_c: vec2<f32>,
+    ior: vec4<f32>,
+    metalness: vec4<f32>
 }
 
 struct Ray {
@@ -54,27 +63,33 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let screen_size: vec2<u32> = textureDimensions(color_buffer);
     let screen_pos: vec2<i32> = vec2(i32(GlobalInvocationID.x), i32(GlobalInvocationID.y));
 
-    let horizontal_coefficient: f32 = (f32(screen_pos.x) - f32(screen_size.x) / 2.0) / f32(screen_size.x);
-    let vertical_coefficient: f32 = (f32(screen_pos.y) - f32(screen_size.y) / 2.0) / f32(screen_size.x);
     
     let forwards: vec3<f32> = scene.cameraForward;
     let right: vec3<f32> = scene.cameraRight;
     let up: vec3<f32> = scene.cameraUp;
 
-    var ray: Ray = Ray(scene.cameraPos, normalize(forwards + right * horizontal_coefficient + up * vertical_coefficient));
+    let samples_per_pixel: u32 = u32(2);
+    var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
+    for (var i: u32 = u32(0); i < samples_per_pixel; i++) {
+        var x_offset: f32 = random(vec2(f32(i), f32(i)));
+        var y_offset: f32 = random(vec2(f32(i), f32(i)));
+        let horizontal_coefficient: f32 = (f32(screen_pos.x) + x_offset - f32(screen_size.x) / 2.0) / f32(screen_size.x);
+        let vertical_coefficient: f32 = (f32(screen_pos.y) + y_offset - f32(screen_size.y) / 2.0) / f32(screen_size.x);
+        var ray: Ray = Ray(scene.cameraPos, normalize(forwards + right * horizontal_coefficient + up * vertical_coefficient));
+        color += rayColor(ray, vec2(f32(i), f32(i)));
+    }
+    color /= f32(samples_per_pixel);
 
-    var pixel_color: vec3<f32> = rayColor(ray);
-
-    textureStore(color_buffer, screen_pos, vec4(pixel_color, 1.0));
+    textureStore(color_buffer, screen_pos, vec4(color, 1.0));
 }
 
-fn rayColor(ray: Ray) -> vec3<f32> {
-    var color: vec3<f32> = vec3(1.0, 1.0, 1.0);
+fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
     var result: RenderState;
    
     var worldRay: Ray;
     worldRay.origin = ray.origin;
     worldRay.direction = ray.direction;
+    var color: vec3<f32> = vec3(1.0, 1.0, 1.0);
 
     var bounce: u32 = u32(0);
     while (bounce < u32(scene.maxBounces)) {
@@ -84,12 +99,13 @@ fn rayColor(ray: Ray) -> vec3<f32> {
 
         for (var t: u32 = u32(0); t < u32(scene.trianglesCount); t++) {
             // find the closest triangle
-            result = hit_triangle(worldRay, primitives.triangles[t], 0.001, result.t, result);
+            result = hit_triangle(worldRay, primitives.triangles[t], 0.001, result.t, result, random_seed);
         }
 
         
         if (!result.hit) {
             // if we didn't hit anything we will break
+            color *= textureSampleLevel(skybox, skybox_sampler, worldRay.direction, 0.0).rgb;
             break;
         } else {
             // if we hit something we will update the ray and accumulated color
@@ -108,7 +124,11 @@ fn rayColor(ray: Ray) -> vec3<f32> {
     return color;
 }
 
-fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState) -> RenderState {
+fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState, random_seed: vec2<f32>) -> RenderState {
+    var ior: f32 = triangle.ior.x;
+    var metalness: f32 = triangle.metalness.x;
+    var use_ior: bool = ior > 0.0 && random(random_seed) < 0.5;
+
     // TODO: precompute surface normal and pass in with triangle
     var edgeAB: vec3<f32> = triangle.corner_b - triangle.corner_a;
     var edgeAC: vec3<f32> = triangle.corner_c - triangle.corner_a;
@@ -117,11 +137,11 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var tri_normal_dot_ray_dir: f32 = dot(surface_normal, ray.direction);
     var front_face: bool = tri_normal_dot_ray_dir < 0.0;
     if (!front_face) {
-        // flip normal if ray hits back face
-        // surface_normal = -surface_normal;
-        // tri_normal_dot_ray_dir = -tri_normal_dot_ray_dir;
-        //TODO: if we ever need to send rays through objects (refraction) we cannot simply ignore back faces
-        return oldRenderState;
+        if (!use_ior) {
+            return oldRenderState;
+        } else {
+            surface_normal = -surface_normal;
+        }
     }
 
     if (tri_normal_dot_ray_dir > -0.00001) {
@@ -141,8 +161,6 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         return oldRenderState;
     }
 
-    // cramer's rule to solve for barycentric coordinates
-    // TODO: see if I can make the barycentric coord code more clear
     var intersection_point: vec3<f32> = ray.origin + t * ray.direction;
     var plane_intersection_point: vec3<f32> = intersection_point - triangle.corner_a;
     var w = surface_normal / dot(surface_normal, surface_normal);
@@ -157,19 +175,26 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         return oldRenderState;
     }
 
-    var normal = (1.0 - u - v) * triangle.normal_a + u * triangle.normal_b + v * triangle.normal_c;
-    var onb_u = normalize(normal);
-    var onb_v = normalize(cross(vec3(0.0, 1.0, 0.0), onb_u));
-    var onb_w = normalize(cross(onb_u, onb_v));
-    var random_cosine_direction = random_cosine_direction();
-    var scatter_direction = onb_u * random_cosine_direction.x + onb_v * random_cosine_direction.y + onb_w * random_cosine_direction.z;
+    
+    var normal = normalize((1.0 - u - v) * triangle.normal_a + u * triangle.normal_b + v * triangle.normal_c);
 
-    var uv = (1.0 - u - v) * triangle.uv_a + u * triangle.uv_b + v * triangle.uv_c;
-    var base_color = textureSampleLevel(base_color_map, base_color_sampler, uv, 0.0).rgb;
+    var scatter_direction: vec3<f32>;
+    var base_color: vec3<f32>;
+    if (use_ior) {
+        scatter_direction = dielectric_scattering(ray, normal, ior, front_face, random_seed);
+        base_color = vec3(1.0, 1.0, 1.0);
+    } else {
+        if (random(random_seed) < metalness) {
+            scatter_direction = metal_scattering(ray, normal);
+        } else {
+            scatter_direction = lambertian_scattering();
+        }
+        var uv = (1.0 - u - v) * triangle.uv_a + u * triangle.uv_b + v * triangle.uv_c;
+        base_color = textureSampleLevel(base_color_map, base_color_sampler, uv, 0.0).rgb;
+    }
 
     var renderState: RenderState;
-    renderState.color = oldRenderState.color;
-    renderState.scatter_direction = normalize(scatter_direction);
+    renderState.scatter_direction = scatter_direction;
     renderState.t = t;
     renderState.hit = true;
     renderState.color = base_color;
@@ -177,11 +202,52 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     return renderState;
 }
 
-fn random_cosine_direction() -> vec3<f32> {
-    var r1: f32 = random(vec2(0.0, 0.0));
-    var r2: f32 = random(vec2(1.0, 1.0));
-    var phi = 2.0 * 3.1415926535897932384626433832795 * r1;
-    return vec3(cos(phi) * sqrt(r2), sin(phi) * sqrt(r2), sqrt(1.0 - r2));
+fn lambertian_scattering() -> vec3<f32> {
+   let random_unit_vector: vec3<f32> = normalize(random_in_unit_sphere());
+   var scatter_direction: vec3<f32> = random_unit_vector + vec3(0.0, 0.0, -1.0);
+   if (length(scatter_direction) < 0.0001) {
+    scatter_direction = vec3(0.0, 0.0, -1.0);
+   }
+   return scatter_direction;
+}
+
+fn metal_scattering(ray: Ray, normal: vec3<f32>) -> vec3<f32> {
+    var scatter_direction = reflect(normalize(ray.direction), normal);
+    return scatter_direction;
+}
+
+fn dielectric_scattering(ray: Ray, normal: vec3<f32>, ior: f32, front_face: bool, random_seed: vec2<f32>) -> vec3<f32> {
+     var refrecation_ratio = 1.0 / ior;
+    if (!front_face) {
+        refrecation_ratio = ior;
+    }
+    var unit_direction = normalize(ray.direction);
+    var cos_theta = min(dot(-unit_direction, normal), 1.0);
+    var sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    var cannot_refract = refrecation_ratio * sin_theta > 1.0;
+    
+    var scatter_direction: vec3<f32>;
+    if (cannot_refract) {
+        var r0 = (1.0 - refrecation_ratio) / (1.0 + refrecation_ratio);
+        r0 = r0 * r0;
+        var reflectance = r0 + (1.0 - r0) * pow(1.0 - cos_theta, 5.0);
+        if (random(random_seed) < reflectance) {
+            scatter_direction = reflect(unit_direction, normal);
+        } else {
+            scatter_direction = refract(unit_direction, normal, refrecation_ratio);
+        }
+    } else {
+        scatter_direction = refract(unit_direction, normal, refrecation_ratio);
+    }
+    return scatter_direction;
+}
+
+fn random_in_unit_sphere() -> vec3<f32> {
+    var random_vector: vec3<f32> = vec3( 2.0 * random(vec2(0.0, 0.0)) - 1.0, 2.0 * random(vec2(1.0, 1.0)) - 1.0, 2.0 * random(vec2(2.0, 2.0)) - 1.0);
+    while (dot(random_vector, random_vector) >= 1.0) {
+        random_vector = vec3( 2.0 * random(vec2(0.0, 0.0)) - 1.0, 2.0 * random(vec2(1.0, 1.0)) - 1.0, 2.0 * random(vec2(2.0, 2.0)) - 1.0);
+    }
+    return random_vector;
 }
 
 fn random(uv: vec2<f32>) -> f32 {
