@@ -14,13 +14,34 @@ var base_color_map: texture_2d<f32>;
 var base_color_sampler: sampler;
 
 @group(0) @binding(5)
-var skybox: texture_cube<f32>;
+var<storage, read> bvh_nodes: BVHTree;
 
 @group(0) @binding(6)
+var<storage, read> triangle_indices: ObjectIndices;
+
+@group(0) @binding(7)
+var skybox: texture_cube<f32>;
+
+@group(0) @binding(8)
 var skybox_sampler: sampler;
+
+struct BVHTree {
+    nodes: array<BVHNode>
+}
+
+struct BVHNode {
+    minCorner: vec3<f32>,
+    leftChild: f32,
+    maxCorner: vec3<f32>,
+    objectCount: f32
+}
 
 struct PrimitiveData {
     triangles: array<Triangle>
+}
+
+struct ObjectIndices {
+    indices: array<f32>
 }
 
 struct Triangle {
@@ -85,22 +106,16 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
 fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
     var result: RenderState;
+    var color: vec3<f32> = vec3(1.0, 1.0, 1.0);
    
     var worldRay: Ray;
     worldRay.origin = ray.origin;
     worldRay.direction = ray.direction;
-    var color: vec3<f32> = vec3(1.0, 1.0, 1.0);
-
+    
     var bounce: u32 = u32(0);
     while (bounce < u32(scene.maxBounces)) {
         // we will bounce a certain number of times
-        result.hit = false;
-        result.t = 1.0e30;
-
-        for (var t: u32 = u32(0); t < u32(scene.trianglesCount); t++) {
-            // find the closest triangle
-            result = hit_triangle(worldRay, primitives.triangles[t], 0.001, result.t, result, random_seed);
-        }
+        result = trace(worldRay, random_seed);
 
         
         if (!result.hit) {
@@ -122,6 +137,37 @@ fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
     }
 
     return color;
+}
+
+fn trace(ray: Ray, random_seed: vec2<f32>) -> RenderState {
+    let nearest_hit: f32 = 1.0e30;
+    var renderState: RenderState;
+    renderState.hit = false;
+    renderState.t = 1.0e30;
+
+    for (var t: u32 = u32(0); t < u32(scene.trianglesCount); t++) {
+        // find the closest triangle
+        renderState = hit_triangle(ray, primitives.triangles[t], 0.001, renderState.t, renderState, random_seed);
+    }
+
+    return renderState;
+}
+
+fn hit_aabb(ray: Ray, aabb: BVHNode) -> f32 {
+    var t1: vec3<f32> = (aabb.minCorner - ray.origin) / ray.direction;
+    var t2: vec3<f32> = (aabb.maxCorner - ray.origin) / ray.direction;
+
+    var tMin: vec3<f32> = min(t1, t2);
+    var tMax: vec3<f32> = max(t1, t2);
+
+    var t_min: f32 = max(max(tMin.x, tMin.y), tMin.z);
+    var t_max: f32 = min(min(tMax.x, tMax.y), tMax.z);
+
+    if (t_min > t_max || t_max < 0.0) {
+        return 1.0e30;
+    } else {
+        return t_min;
+    }
 }
 
 fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState, random_seed: vec2<f32>) -> RenderState {

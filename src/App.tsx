@@ -8,6 +8,7 @@ import {Controller} from "ez_canvas_controller";
 import { vec3 } from "gl-matrix";
 import { GLTFMaterial } from "./glTF/GLTFMaterial";
 import { CubeMaterial } from "./CubeMaterial";
+import { BVHTree } from "./glTF/BVHTree";
 
 function createSolidColorTexture(device: GPUDevice, r: number, g: number, b: number, a: number) {
   const data = new Uint8Array([r * 255, g * 255, b * 255, a * 255]);
@@ -84,6 +85,7 @@ const App = () => {
 
     const triangles: Triangle[] = scene.triangles;
     const materials: GLTFMaterial[] = scene.materials;
+    const bvhTree = new BVHTree(triangles);
 
     // for now assume only one material
     const material = materials[0];
@@ -99,6 +101,18 @@ const App = () => {
       size: 40 * Float32Array.BYTES_PER_ELEMENT * triangles.length,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
+
+    const bvh_nodes_buffer_descriptor: GPUBufferDescriptor = {
+      size: 8 * Float32Array.BYTES_PER_ELEMENT * bvhTree.nodes.length,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    };
+    const bvh_nodes_buffer: GPUBuffer = device.createBuffer(bvh_nodes_buffer_descriptor);
+
+    const triangle_indices_buffer_descriptor: GPUBufferDescriptor = {
+      size: bvhTree.triangles.length * Float32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    };
+    const triangle_indices_buffer: GPUBuffer = device.createBuffer(triangle_indices_buffer_descriptor);
 
     const cube_material = await CubeMaterial.init(device, ["./gfx/sky_front.png", "./gfx/sky_back.png", "./gfx/sky_left.png", "./gfx/sky_right.png", "./gfx/sky_bottom.png", "./gfx/sky_top.png"]);
 
@@ -137,10 +151,20 @@ const App = () => {
         {
           binding: 5,
           visibility: GPUShaderStage.COMPUTE,
+          buffer: {type: "read-only-storage"}
+      },
+      {
+          binding: 6,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: {type: "read-only-storage"}
+      },
+        {
+          binding: 7,
+          visibility: GPUShaderStage.COMPUTE,
           texture: { viewDimension: "cube" },
         },
         {
-          binding: 6,
+          binding: 8,
           visibility: GPUShaderStage.COMPUTE,
           sampler: {},
         }
@@ -155,8 +179,10 @@ const App = () => {
         {binding: 2, resource: {buffer: trianglesBuffer}},
         {binding: 3, resource: baseColorTextureView},
         {binding: 4, resource: sampler},
-        {binding: 5, resource: cube_material.view},
-        {binding: 6, resource: cube_material.sampler},
+        {binding: 5, resource: {buffer: bvh_nodes_buffer}},
+        {binding: 6, resource: {buffer: triangle_indices_buffer}},
+        {binding: 7, resource: cube_material.view},
+        {binding: 8, resource: cube_material.sampler},
       ]
     });
 
@@ -231,6 +257,23 @@ const App = () => {
     trianglesUploadData.set([triangles[i].metalness], i * 40 + 36);
   }
   device?.queue.writeBuffer(trianglesBuffer, 0, trianglesUploadData, 0);
+
+  // UPLOAD TRIANGLE INDICES
+  const triangleIndicesUploadData = new Float32Array(bvhTree.triangleIndices.length);
+  for (let i = 0; i < bvhTree.triangleIndices.length; i++) {
+    triangleIndicesUploadData.set([bvhTree.triangleIndices[i]], i);
+  }
+  device?.queue.writeBuffer(triangle_indices_buffer, 0, triangleIndicesUploadData, 0);
+
+  // UPLOAD BVH NODES
+  const bvhNodesUploadData = new Float32Array(bvhTree.nodesUsed * 8);
+  for (let i = 0; i < bvhTree.nodesUsed; i++) {
+    bvhNodesUploadData.set(bvhTree.nodes[i].minCorner, i * 8);
+    bvhNodesUploadData.set([bvhTree.nodes[i].left], i * 8 + 3);
+    bvhNodesUploadData.set(bvhTree.nodes[i].maxCorner, i * 8 + 4);
+    bvhNodesUploadData.set([bvhTree.nodes[i].primitiveCount], i * 8 + 7);
+  }
+  device?.queue.writeBuffer(bvh_nodes_buffer, 0, bvhNodesUploadData, 0);
 
   // UPLAOD SCENE PARAMS
   const maxBounces: number = 50;
