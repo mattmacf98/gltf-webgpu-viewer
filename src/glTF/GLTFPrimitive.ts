@@ -86,8 +86,8 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
                     [new Float32Array(positionOne), new Float32Array(positionTwo), new Float32Array(positionThree)],
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],
                     [new Float32Array(uvOne), new Float32Array(uvTwo), new Float32Array(uvThree)],
-                    2.0, //ior
-                    0.0 //metalness
+                    -1.0, //ior
+                    1.0 //metalness
                 );
                 triangles.push(triangle);
             }

@@ -79,13 +79,15 @@ const App = () => {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    const scene = await fetch("./BoxTextured.glb")
+    const scene = await fetch("./Duck.glb")
       .then(res => res.arrayBuffer())
       .then(buffer => uploadGLB(buffer, device));
 
     const triangles: Triangle[] = scene.triangles;
     const materials: GLTFMaterial[] = scene.materials;
     const bvhTree = new BVHTree(triangles);
+    console.log(bvhTree.nodes)
+    console.log(bvhTree.nodesUsed)
 
     // for now assume only one material
     const material = materials[0];
@@ -361,6 +363,7 @@ const App = () => {
       device.queue.submit([commandEncoder.finish()]);
       device.queue.onSubmittedWorkDone()
       .then(() => {
+          sceneParamsUpdateBuffer.destroy();
           const end = performance.now();
           // console.log(`Render Time: ${end - start}ms`);
       });

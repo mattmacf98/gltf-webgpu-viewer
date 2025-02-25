@@ -140,14 +140,84 @@ fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
 }
 
 fn trace(ray: Ray, random_seed: vec2<f32>) -> RenderState {
-    let nearest_hit: f32 = 1.0e30;
+    var nearest_hit: f32 = 1.0e30;
     var renderState: RenderState;
     renderState.hit = false;
     renderState.t = 1.0e30;
 
-    for (var t: u32 = u32(0); t < u32(scene.trianglesCount); t++) {
-        // find the closest triangle
-        renderState = hit_triangle(ray, primitives.triangles[t], 0.001, renderState.t, renderState, random_seed);
+    var node: BVHNode = bvh_nodes.nodes[0];
+    var stack: array<BVHNode, 15>;
+    var stackLocation: u32 = u32(0);
+
+    // NAIVE BRUTE FORCE TRIANGLES
+    // for (var t: u32 = u32(0); t < u32(scene.trianglesCount); t++) {
+    //     // find the closest triangle
+    //     renderState = hit_triangle(ray, primitives.triangles[t], 0.001, renderState.t, renderState, random_seed);
+    // }
+
+    while (true) {
+        var objectCount: u32 = u32(node.objectCount);
+        var contents: u32 = u32(node.leftChild);
+
+        // internal node goes and checks children
+        if (objectCount == u32(0) && node.leftChild > 0.0) {
+            var child_one: BVHNode = bvh_nodes.nodes[contents];
+            var child_two: BVHNode = bvh_nodes.nodes[contents + u32(1)];
+
+            var distance_one: f32 = hit_aabb(ray, child_one);
+            var distance_two: f32 = hit_aabb(ray, child_two);
+
+            var closest_child: BVHNode;
+            var farthest_child: BVHNode;
+
+            if (distance_one < distance_two) {
+                closest_child = child_one;
+                farthest_child = child_two;
+            } else {
+                closest_child = child_two;
+                farthest_child = child_one;
+            }
+
+            
+            var closest_distance: f32 = min(distance_one, distance_two);
+            if (closest_distance > nearest_hit) {
+                // ray misses both children grab next BVH node to explore (or break if stack is empty)
+                if (stackLocation == u32(0)) {
+                    break;
+                } else {
+                    stackLocation--;
+                    node = stack[stackLocation];
+                    continue;
+                }
+            } else {
+                // ray hits at least one child, assign exploring child to closest one
+                node = closest_child;
+                var farthest_distance: f32 = max(distance_one, distance_two);
+                if (farthest_distance < nearest_hit) {
+                    // if other node is closer than nearest hit, push it on the stack so we can explore it if needed
+                    stack[stackLocation] = farthest_child;
+                    stackLocation++;
+                }
+            }
+        } else {
+            // actual data node, test triangles
+            for (var i: u32 = u32(0); i < objectCount; i++) {
+                var newRenderState: RenderState = hit_triangle(ray, primitives.triangles[u32(triangle_indices.indices[contents + i])], 0.001, nearest_hit, renderState, random_seed);
+
+                if (newRenderState.hit) {
+                    nearest_hit = newRenderState.t;
+                    renderState = newRenderState;
+                }
+            }
+
+            if (stackLocation == u32(0) ) {
+                break;
+            } else {
+                stackLocation--;
+                node = stack[stackLocation];
+                continue;
+            }
+        }
     }
 
     return renderState;

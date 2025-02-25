@@ -49,7 +49,7 @@ export class BVHTree {
     private _subdivide(nodeIndex: number) {
         const node: BVHNode = this._nodes[nodeIndex];
 
-        if (node.primitiveCount < 2) {
+        if (node.primitiveCount <= 4) {
             return;
         }
 
