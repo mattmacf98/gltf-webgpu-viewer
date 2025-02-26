@@ -54,10 +54,10 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
 
         const triangles = [];
         if (indices) {
-            const vertexPositions = new Float32Array(positions.elements.buffer.slice(positions.elements.byteOffset, positions.elements.byteOffset + positions.elements.byteLength));
-            const vertexNormals = new Float32Array(normals.elements.buffer.slice(normals.elements.byteOffset, normals.elements.byteOffset + normals.elements.byteLength));
-            const vertexUvs = new Float32Array(texcoords.elements.buffer.slice(texcoords.elements.byteOffset, texcoords.elements.byteOffset + texcoords.elements.byteLength));
-            const indicesArray = new Uint16Array(indices.elements.buffer.slice(indices.elements.byteOffset, indices.elements.byteOffset + indices.elements.byteLength));
+            const vertexPositions = new Float32Array(positions.elements.buffer);
+            const vertexNormals = new Float32Array(normals.elements.buffer);
+            const vertexUvs = new Float32Array(texcoords.elements.buffer);
+            const indicesArray = new Uint16Array(indices.elements.buffer);
 
             for (let i = 0; i < indicesArray.length; i += 3) {
 
@@ -87,7 +87,7 @@ export function loadPrimitives(jsonChunk: any, meshJson: any, accessors: GLTFAcc
                     [new Float32Array(normalOne), new Float32Array(normalTwo), new Float32Array(normalThree)],
                     [new Float32Array(uvOne), new Float32Array(uvTwo), new Float32Array(uvThree)],
                     -1.0, //ior
-                    1.0 //metalness
+                    0.0 //metalness
                 );
                 triangles.push(triangle);
             }

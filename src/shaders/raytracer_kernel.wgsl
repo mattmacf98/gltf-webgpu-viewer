@@ -76,7 +76,7 @@ struct RenderState {
     t: f32,
     color: vec3<f32>,
     hit: bool,
-    scatter_direction: vec3<f32>,
+    scatter_direction: vec3<f32>
 }
 
 @compute @workgroup_size(1,1,1)
@@ -95,12 +95,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
         var x_offset: f32 = random(vec2(f32(i), f32(i)));
         var y_offset: f32 = random(vec2(f32(i), f32(i)));
         let horizontal_coefficient: f32 = (f32(screen_pos.x) + x_offset - f32(screen_size.x) / 2.0) / f32(screen_size.x);
-        let vertical_coefficient: f32 = (f32(screen_pos.y) + y_offset - f32(screen_size.y) / 2.0) / f32(screen_size.x);
+        let vertical_coefficient: f32 = (f32(screen_pos.y) + y_offset - f32(screen_size.y) / 2.0) / f32(screen_size.y);
         var ray: Ray = Ray(scene.cameraPos, normalize(forwards + right * horizontal_coefficient + up * vertical_coefficient));
         color += rayColor(ray, vec2(f32(i), f32(i)));
     }
     color /= f32(samples_per_pixel);
-
+    color = linear_to_gamma(color);
     textureStore(color_buffer, screen_pos, vec4(color, 1.0));
 }
 
@@ -265,14 +265,8 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         return oldRenderState;
     }
 
-    
-    var denom = dot(surface_normal, ray.direction);
-    if (abs(denom) < 0.00001) {
-        return oldRenderState;
-    }
-
     var d = dot(surface_normal, triangle.corner_a); //TODO this could be in tri data
-    var t = (d - dot(surface_normal, ray.origin)) / denom;
+    var t = (d - dot(surface_normal, ray.origin)) / tri_normal_dot_ray_dir;
     if (t < tMin || t > tMax) {
         return oldRenderState;
     }
@@ -296,6 +290,7 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
 
     var scatter_direction: vec3<f32>;
     var base_color: vec3<f32>;
+
     if (use_ior) {
         scatter_direction = dielectric_scattering(ray, normal, ior, front_face, random_seed);
         base_color = vec3(1.0, 1.0, 1.0);
@@ -303,14 +298,14 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         if (random(random_seed) < metalness) {
             scatter_direction = metal_scattering(ray, normal);
         } else {
-            scatter_direction = lambertian_scattering();
+            scatter_direction = lambertian_scattering(normal, random_seed);
         }
         var uv = (1.0 - u - v) * triangle.uv_a + u * triangle.uv_b + v * triangle.uv_c;
         base_color = textureSampleLevel(base_color_map, base_color_sampler, uv, 0.0).rgb;
     }
 
     var renderState: RenderState;
-    renderState.scatter_direction = scatter_direction;
+    renderState.scatter_direction = normalize(scatter_direction);
     renderState.t = t;
     renderState.hit = true;
     renderState.color = base_color;
@@ -318,11 +313,11 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     return renderState;
 }
 
-fn lambertian_scattering() -> vec3<f32> {
-   let random_unit_vector: vec3<f32> = normalize(random_in_unit_sphere());
-   var scatter_direction: vec3<f32> = random_unit_vector + vec3(0.0, 0.0, -1.0);
+fn lambertian_scattering(normal: vec3<f32>, random_seed: vec2<f32>) -> vec3<f32> {
+   let random_unit_vector: vec3<f32> = normalize(random_in_unit_sphere(random_seed));
+   var scatter_direction: vec3<f32> = random_unit_vector + normal;
    if (length(scatter_direction) < 0.0001) {
-    scatter_direction = vec3(0.0, 0.0, -1.0);
+    scatter_direction = normal;
    }
    return scatter_direction;
 }
@@ -358,14 +353,30 @@ fn dielectric_scattering(ray: Ray, normal: vec3<f32>, ior: f32, front_face: bool
     return scatter_direction;
 }
 
-fn random_in_unit_sphere() -> vec3<f32> {
-    var random_vector: vec3<f32> = vec3( 2.0 * random(vec2(0.0, 0.0)) - 1.0, 2.0 * random(vec2(1.0, 1.0)) - 1.0, 2.0 * random(vec2(2.0, 2.0)) - 1.0);
-    while (dot(random_vector, random_vector) >= 1.0) {
-        random_vector = vec3( 2.0 * random(vec2(0.0, 0.0)) - 1.0, 2.0 * random(vec2(1.0, 1.0)) - 1.0, 2.0 * random(vec2(2.0, 2.0)) - 1.0);
+fn random_in_unit_sphere(random_seed: vec2<f32>) -> vec3<f32> {
+    var random_vector: vec3<f32> = vec3( 2.0 * random(random_seed) - 1.0, 2.0 * random(random_seed) - 1.0, 2.0 * random(random_seed) - 1.0);
+    var nonce: f32 = 0.0;
+    while (dot(random_vector, random_vector) >= 1.0 && nonce < 100.0) {
+        random_vector = vec3( 2.0 * random(vec2(random_seed.x + nonce, random_seed.y)) - 1.0, 2.0 * random(vec2(random_seed.y + nonce, random_seed.x)) - 1.0, 2.0 * random(vec2(random_seed.x + random_seed.y, nonce)) - 1.0);
+        nonce += 1.0;
     }
     return random_vector;
 }
 
 fn random(uv: vec2<f32>) -> f32 {
     return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+fn linear_to_gamma(color: vec3<f32>) -> vec3<f32> {
+    var color_gamma: vec3<f32> = vec3(0.0, 0.0, 0.0);
+    if (color.r > 0.0) {
+        color_gamma.r = sqrt(color.r);
+    }
+    if (color.g > 0.0) {
+        color_gamma.g = sqrt(color.g);
+    }
+    if (color.b > 0.0) {
+        color_gamma.b = sqrt(color.b);
+    }
+    return color_gamma;
 }
