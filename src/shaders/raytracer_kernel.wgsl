@@ -260,7 +260,7 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
         }
     }
 
-    if (tri_normal_dot_ray_dir > -0.00001) {
+    if (tri_normal_dot_ray_dir > -0.00000001) {
         // ray is parallel to triangle
         return oldRenderState;
     }
