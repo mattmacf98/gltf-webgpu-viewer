@@ -89,15 +89,15 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let right: vec3<f32> = scene.cameraRight;
     let up: vec3<f32> = scene.cameraUp;
 
-    let samples_per_pixel: u32 = u32(2);
+    let samples_per_pixel: u32 = u32(4);
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
     for (var i: u32 = u32(0); i < samples_per_pixel; i++) {
-        var x_offset: f32 = random(vec2(f32(i), f32(i)));
-        var y_offset: f32 = random(vec2(f32(i), f32(i)));
+        var x_offset: f32 = random(vec2(f32(i) + f32(GlobalInvocationID.x), f32(i) + f32(GlobalInvocationID.y)));
+        var y_offset: f32 = random(vec2(f32(i) + f32(GlobalInvocationID.y), f32(i) + f32(GlobalInvocationID.x)));
         let horizontal_coefficient: f32 = (f32(screen_pos.x) + x_offset - f32(screen_size.x) / 2.0) / f32(screen_size.x);
         let vertical_coefficient: f32 = (f32(screen_pos.y) + y_offset - f32(screen_size.y) / 2.0) / f32(screen_size.y);
         var ray: Ray = Ray(scene.cameraPos, normalize(forwards + right * horizontal_coefficient + up * vertical_coefficient));
-        color += rayColor(ray, vec2(f32(i), f32(i)));
+        color += rayColor(ray, vec2(f32(GlobalInvocationID.x), f32(GlobalInvocationID.y)));
     }
     color /= f32(samples_per_pixel);
     color = linear_to_gamma(color);
@@ -314,11 +314,8 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
 }
 
 fn lambertian_scattering(normal: vec3<f32>, random_seed: vec2<f32>) -> vec3<f32> {
-   let random_unit_vector: vec3<f32> = normalize(random_in_unit_sphere(random_seed));
+   let random_unit_vector: vec3<f32> = random_in_unit_sphere(vec2(normal.x + random_seed.x, normal.y + random_seed.y));
    var scatter_direction: vec3<f32> = random_unit_vector + normal;
-   if (length(scatter_direction) < 0.0001) {
-    scatter_direction = normal;
-   }
    return scatter_direction;
 }
 
