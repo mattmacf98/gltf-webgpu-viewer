@@ -89,7 +89,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let right: vec3<f32> = scene.cameraRight;
     let up: vec3<f32> = scene.cameraUp;
 
-    let samples_per_pixel: u32 = u32(4);
+    let samples_per_pixel: u32 = u32(2);
     var color: vec3<f32> = vec3(0.0, 0.0, 0.0);
     for (var i: u32 = u32(0); i < samples_per_pixel; i++) {
         var x_offset: f32 = random(vec2(f32(i) + f32(GlobalInvocationID.x), f32(i) + f32(GlobalInvocationID.y)));
@@ -97,14 +97,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
         let horizontal_coefficient: f32 = (f32(screen_pos.x) + x_offset - f32(screen_size.x) / 2.0) / f32(screen_size.x);
         let vertical_coefficient: f32 = (f32(screen_pos.y) + y_offset - f32(screen_size.y) / 2.0) / f32(screen_size.y);
         var ray: Ray = Ray(scene.cameraPos, normalize(forwards + right * horizontal_coefficient + up * vertical_coefficient));
-        color += rayColor(ray, vec2(f32(GlobalInvocationID.x), f32(GlobalInvocationID.y)));
+        color += rayColor(ray, vec2(f32(GlobalInvocationID.x) + f32(i), f32(GlobalInvocationID.y) + f32(i)), i);
     }
     color /= f32(samples_per_pixel);
     color = linear_to_gamma(color);
     textureStore(color_buffer, screen_pos, vec4(color, 1.0));
 }
 
-fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
+fn rayColor(ray: Ray, random_seed: vec2<f32>, sample_number: u32) -> vec3<f32> {
     var result: RenderState;
     var color: vec3<f32> = vec3(1.0, 1.0, 1.0);
    
@@ -115,7 +115,7 @@ fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
     var bounce: u32 = u32(0);
     while (bounce < u32(scene.maxBounces)) {
         // we will bounce a certain number of times
-        result = trace(worldRay, random_seed);
+        result = trace(worldRay, random_seed, sample_number);
 
         
         if (!result.hit) {
@@ -139,7 +139,7 @@ fn rayColor(ray: Ray, random_seed: vec2<f32>) -> vec3<f32> {
     return color;
 }
 
-fn trace(ray: Ray, random_seed: vec2<f32>) -> RenderState {
+fn trace(ray: Ray, random_seed: vec2<f32>, sample_number: u32) -> RenderState {
     var nearest_hit: f32 = 1.0e30;
     var renderState: RenderState;
     renderState.hit = false;
@@ -202,7 +202,7 @@ fn trace(ray: Ray, random_seed: vec2<f32>) -> RenderState {
         } else {
             // actual data node, test triangles
             for (var i: u32 = u32(0); i < objectCount; i++) {
-                var newRenderState: RenderState = hit_triangle(ray, primitives.triangles[u32(triangle_indices.indices[contents + i])], 0.001, nearest_hit, renderState, random_seed);
+                var newRenderState: RenderState = hit_triangle(ray, primitives.triangles[u32(triangle_indices.indices[contents + i])], 0.001, nearest_hit, renderState, random_seed, sample_number);
 
                 if (newRenderState.hit) {
                     nearest_hit = newRenderState.t;
@@ -240,7 +240,7 @@ fn hit_aabb(ray: Ray, aabb: BVHNode) -> f32 {
     }
 }
 
-fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState, random_seed: vec2<f32>) -> RenderState {
+fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState, random_seed: vec2<f32>, sample_number: u32) -> RenderState {
     var ior: f32 = triangle.ior.x;
     var metalness: f32 = triangle.metalness.x;
     
@@ -249,7 +249,7 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var edgeAC: vec3<f32> = triangle.corner_c - triangle.corner_a;
     var surface_normal: vec3<f32> = cross(edgeAB, edgeAC);
 
-    var use_ior: bool = ior > 0.0;
+    var use_ior: bool = ior > 0.0 && (sample_number % 2u == 0u);
 
     var tri_normal_dot_ray_dir: f32 = dot(surface_normal, ray.direction);
     var front_face: bool = tri_normal_dot_ray_dir < 0.0;
@@ -292,13 +292,10 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var scatter_direction: vec3<f32>;
     var base_color: vec3<f32>;
 
-    if (use_ior && random(vec2(normal.x + random_seed.x, normal.y + random_seed.y)) < 0.5) {
+    if (use_ior) {
         scatter_direction = dielectric_scattering(ray, normal, ior, front_face, random_seed);
         base_color = vec3(1.0, 1.0, 1.0);
     } else {
-        if (!front_face) {
-            return oldRenderState;
-        }
         if (random(random_seed) < metalness) {
             scatter_direction = metal_scattering(ray, normal);
         } else {
