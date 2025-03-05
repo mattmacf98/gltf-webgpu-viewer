@@ -243,12 +243,13 @@ fn hit_aabb(ray: Ray, aabb: BVHNode) -> f32 {
 fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderState: RenderState, random_seed: vec2<f32>) -> RenderState {
     var ior: f32 = triangle.ior.x;
     var metalness: f32 = triangle.metalness.x;
-    var use_ior: bool = ior > 0.0 && random(random_seed) < 0.5;
-
+    
     // TODO: precompute surface normal and pass in with triangle
     var edgeAB: vec3<f32> = triangle.corner_b - triangle.corner_a;
     var edgeAC: vec3<f32> = triangle.corner_c - triangle.corner_a;
     var surface_normal: vec3<f32> = cross(edgeAB, edgeAC);
+
+    var use_ior: bool = ior > 0.0;
 
     var tri_normal_dot_ray_dir: f32 = dot(surface_normal, ray.direction);
     var front_face: bool = tri_normal_dot_ray_dir < 0.0;
@@ -291,10 +292,13 @@ fn hit_triangle(ray:Ray, triangle: Triangle, tMin: f32, tMax: f32, oldRenderStat
     var scatter_direction: vec3<f32>;
     var base_color: vec3<f32>;
 
-    if (use_ior) {
+    if (use_ior && random(vec2(normal.x + random_seed.x, normal.y + random_seed.y)) < 0.5) {
         scatter_direction = dielectric_scattering(ray, normal, ior, front_face, random_seed);
         base_color = vec3(1.0, 1.0, 1.0);
     } else {
+        if (!front_face) {
+            return oldRenderState;
+        }
         if (random(random_seed) < metalness) {
             scatter_direction = metal_scattering(ray, normal);
         } else {

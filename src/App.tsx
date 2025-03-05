@@ -278,7 +278,7 @@ const App = () => {
   device?.queue.writeBuffer(bvh_nodes_buffer, 0, bvhNodesUploadData, 0);
 
   // UPLAOD SCENE PARAMS
-  const maxBounces: number = 5;
+  const maxBounces: number = 3;
   const camera = new ArcballCamera([0, 0, 5], [0, 0, 0], [0, -1, 0], 0.5, [
     canvas.width,
     canvas.height,
@@ -375,7 +375,7 @@ const App = () => {
 
   return (
     <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
-      <canvas width="800" height="600" style={{border: '1px solid black'}} ref={canvasRef}></canvas>
+      <canvas width="400" height="300" style={{border: '1px solid black'}} ref={canvasRef}></canvas>
     </div>
   )
 }
